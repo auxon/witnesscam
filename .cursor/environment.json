@@ -1,0 +1,17 @@
+{
+  "name": "WitnessCam",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "dev",
+      "command": "npm run dev",
+      "description": "Vite at http://localhost:5173/witnesscam/"
+    }
+  ],
+  "ports": [
+    {
+      "name": "WitnessCam",
+      "port": 5173
+    }
+  ]
+}
