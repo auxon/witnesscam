@@ -23,13 +23,18 @@ export function About() {
           a receipt the world can keep even when the file stays dark.
         </li>
         <li>
+          <strong>Yours Wallet</strong> broadcasts that receipt. The{" "}
+          <a href="https://github.com/auxon/yours-agent">auxon/yours-agent</a> extension or MCP
+          sidecar sends the OP_RETURN on-chain. Without a wallet the same script is mined locally.
+        </li>
+        <li>
           <strong>Stripe Pro</strong> pays for the instrument. The first three bags are free.
           After that it is $9/month via Checkout. Evidence still never leaves the device.
         </li>
       </ul>
       <p>
-        This build runs entirely in your browser. The miner is a local demo so you can feel the
-        loop without a wallet. The script it produces is a real OP_RETURN payload:{" "}
+        This build encrypts in the browser. If Yours Wallet (or the yours-agent sidecar) is
+        connected, the timestamp is a live BSV transaction. The payload is always{" "}
         <code>WC1 || sha256(file) || custodyTip</code>.
       </p>
     </section>

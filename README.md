@@ -9,7 +9,7 @@ This is the first slice of the WitnessCam idea: a browser instrument that seals 
 1. **Capture** — camera still, 15s video, file upload, or a generated sample still (for machines without a camera).
 2. **Encrypt** — AES-256-GCM in WebCrypto. The key stays in IndexedDB on this origin.
 3. **Hash** — SHA-256 of the original bytes. That digest is the identity of the evidence.
-4. **Timestamp** — a local demo miner writes `OP_RETURN WC1 || contentHash || custodyTip`. Same payload production would broadcast to BSV.
+4. **Timestamp** — Yours Wallet (or the yours-agent sidecar) broadcasts `OP_RETURN WC1 || contentHash || custodyTip` to BSV. Without a wallet, the same script is mined locally so the loop still runs.
 5. **Transfer** — append a `TRANSFERRED` event, re-commit the new tip.
 6. **Verify** — drop the original file and/or the public proof JSON. No pixels required to check the chain.
 
@@ -57,13 +57,24 @@ Events: `checkout.session.completed`, `customer.subscription.updated`, `customer
 
 Without those secrets the Worker still serves the app. The paywall shows “Stripe is not configured” and `/api/checkout` returns 503.
 
+## Yours Wallet
+
+Live stamps go through [Yours](https://yours.org) / [auxon/yours-agent](https://github.com/auxon/yours-agent):
+
+1. Browser extension (`window.yours.sendBsv`) — install [Yours Wallet](https://chromewebstore.google.com/detail/yours-wallet/mlbnicldlpdimbjdcncnklfempedeipj) and click **Connect Yours**.
+2. Agent sidecar on `http://127.0.0.1:3321` — only from `http://localhost` (HTTPS pages cannot call the sidecar). MCP tools `create_action` / `send_bsv` are the same wallet.
+3. Demo miner if neither is present.
+
+The locking script is the existing 67-byte `WC1` payload, sent as a 1-sat OP_RETURN output.
+
 ## What is demo vs real
 
 | Piece | This build | Production |
 | --- | --- | --- |
 | Capture / encrypt / hash / custody chain | Real, in-browser | Same |
-| OP_RETURN script | Real encoding | Broadcast to BSV |
-| Block height / txid | Local demo miner | Bitcoin SV node |
+| OP_RETURN script | Real encoding | Same |
+| Timestamp | Yours Wallet / yours-agent sidecar, else local demo miner | Same |
+| Block height / txid | WhatsOnChain after broadcast; demo height if offline | Bitcoin SV |
 | Storage | IndexedDB on this origin | Holder-controlled bag + optional encrypted object store |
 
 ## Stack

@@ -1,5 +1,7 @@
 import { concatBytes, fromHex, sha256Hex, toHex } from "./bytes";
+import { nextBlockHeight } from "./device";
 import type { ChainAnchor } from "./types";
+import { broadcastOpReturn } from "./yours";
 
 /** ASCII prefix committed in the OP_RETURN payload. */
 export const PAYLOAD_PREFIX = "WC1";
@@ -51,10 +53,22 @@ export async function mineAnchor(
   );
   return {
     network: "bsv-demo",
+    source: "demo",
     opReturnHex,
     payloadAsciiPrefix: PAYLOAD_PREFIX,
     txid,
     blockHeight: height,
     anchoredAt,
   };
+}
+
+/** Live Yours broadcast when a wallet is present; otherwise the local demo miner. */
+export async function anchorEvidence(
+  contentHash: string,
+  chainTipHash: string,
+): Promise<ChainAnchor> {
+  const opReturnHex = encodeOpReturn(contentHash, chainTipHash);
+  const live = await broadcastOpReturn(opReturnHex);
+  if (live) return live;
+  return mineAnchor(contentHash, chainTipHash, nextBlockHeight());
 }

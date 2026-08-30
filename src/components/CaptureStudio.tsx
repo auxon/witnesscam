@@ -6,6 +6,7 @@ import { navigate } from "../lib/router";
 import { makeSampleStill } from "../lib/sampleStill";
 import { sealEvidence, type SealProgress } from "../lib/seal";
 import { useBilling } from "../lib/billing";
+import { useWallet } from "../lib/wallet";
 import type { MediaKind } from "../lib/types";
 
 type Draft = {
@@ -34,6 +35,7 @@ export function CaptureStudio() {
     () => holderFromDevice(getDevice()).holderName,
   );
   const { requireProForSeal, remaining, entitlement, refresh } = useBilling();
+  const wallet = useWallet();
 
   useEffect(() => {
     let cancelled = false;
@@ -230,6 +232,9 @@ export function CaptureStudio() {
         <p className="lede">
           Plaintext never leaves this browser. SHA-256 binds the pixels. AES-256-GCM bags them.
           An OP_RETURN commits the digest and the custody tip.
+          {wallet.connected || wallet.sidecar
+            ? " Yours is live — this seal broadcasts to BSV."
+            : " No wallet yet — this seal uses the local demo miner."}
           {entitlement.pro
             ? " Pro is on — seal without a bag cap."
             : ` ${remaining} free seal${remaining === 1 ? "" : "s"} left on this device.`}

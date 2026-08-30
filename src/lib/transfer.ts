@@ -1,8 +1,8 @@
-import { mineAnchor } from "./chain";
+import { anchorEvidence } from "./chain";
 import { appendEvent, chainTip } from "./custody";
-import { nextBlockHeight } from "./device";
 import { updateBag } from "./storage";
 import type { EvidenceBag } from "./types";
+import { chainActor } from "./yours";
 
 export async function transferCustody(
   bag: EvidenceBag,
@@ -25,23 +25,21 @@ export async function transferCustody(
     },
   });
 
-  const height = nextBlockHeight();
-  const anchor = await mineAnchor(
-    bag.contentHash,
-    transferred.eventHash,
-    height,
-  );
+  const anchor = await anchorEvidence(bag.contentHash, transferred.eventHash);
+  const miner = chainActor(anchor);
 
   const timestamped = await appendEvent({
     prevHash: transferred.eventHash,
     type: "TIMESTAMPED",
-    actorId: "chain.bsv-demo",
-    actorName: "BSV demo miner",
+    actorId: miner.actorId,
+    actorName: miner.actorName,
     contentHash: bag.contentHash,
     meta: {
       txid: anchor.txid,
       blockHeight: String(anchor.blockHeight),
       opReturn: anchor.opReturnHex,
+      network: anchor.network,
+      source: anchor.source || "demo",
       reason: "transfer",
     },
   });

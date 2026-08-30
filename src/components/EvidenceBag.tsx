@@ -6,6 +6,7 @@ import { navigate } from "../lib/router";
 import { getBag, getCiphertext, getKey, toProof } from "../lib/storage";
 import { transferCustody } from "../lib/transfer";
 import type { EvidenceBag } from "../lib/types";
+import { explorerTxUrl } from "../lib/yours";
 import { CustodyStrip } from "./CustodyStrip";
 
 export function EvidenceBagView({ id }: { id: string }) {
@@ -82,6 +83,8 @@ export function EvidenceBagView({ id }: { id: string }) {
 
   const proof = JSON.stringify(toProof(bag), null, 2);
   const verifyUrl = `${window.location.origin}${window.location.pathname}#/verify/${bag.contentHash}`;
+  const live = bag.anchor.network !== "bsv-demo";
+  const explorer = explorerTxUrl(bag.anchor.network, bag.anchor.txid);
 
   return (
     <article className="bag">
@@ -129,9 +132,17 @@ export function EvidenceBagView({ id }: { id: string }) {
               <dd className="mono wrap">{bag.anchor.opReturnHex}</dd>
             </div>
             <div>
-              <dt>Demo tx</dt>
+              <dt>{live ? "BSV tx" : "Demo tx"}</dt>
               <dd className="mono wrap">
-                #{bag.anchor.blockHeight} · {shortHash(bag.anchor.txid, 16)}…
+                {explorer ? (
+                  <a href={explorer} target="_blank" rel="noreferrer">
+                    {bag.anchor.txid}
+                  </a>
+                ) : (
+                  <>
+                    #{bag.anchor.blockHeight} · {shortHash(bag.anchor.txid, 16)}…
+                  </>
+                )}
               </dd>
             </div>
             <div>
@@ -142,7 +153,9 @@ export function EvidenceBagView({ id }: { id: string }) {
             </div>
           </dl>
           <p className="caption">
-            Demo miner writes a local block. Production broadcasts this same OP_RETURN to BSV.
+            {live
+              ? "Yours Wallet broadcast this OP_RETURN to Bitcoin SV. Pixels still never left the browser."
+              : "No Yours wallet on this device, so the miner is local. Connect Yours to stamp the same script on-chain."}
           </p>
         </div>
       </div>

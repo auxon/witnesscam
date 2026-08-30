@@ -1,9 +1,10 @@
-import { mineAnchor } from "./chain";
+import { anchorEvidence } from "./chain";
 import { encryptBytes, generateAesKey, exportKeyB64 } from "./crypto";
 import { sha256Hex } from "./bytes";
 import { GENESIS_PREV, appendEvent, chainTip } from "./custody";
-import { getDevice, holderFromDevice, nextBagId, nextBlockHeight } from "./device";
+import { getDevice, holderFromDevice, nextBagId } from "./device";
 import { saveBag } from "./storage";
+import { chainActor } from "./yours";
 import type { EvidenceBag, MediaKind } from "./types";
 
 export type SealProgress =
@@ -83,19 +84,21 @@ export async function sealEvidence(input: SealInput): Promise<EvidenceBag> {
 
   const events = [captured, encrypted, hashed];
   const tipBeforeAnchor = chainTip(events);
-  const height = nextBlockHeight();
-  const anchor = await mineAnchor(contentHash, tipBeforeAnchor, height);
+  const anchor = await anchorEvidence(contentHash, tipBeforeAnchor);
+  const miner = chainActor(anchor);
 
   const timestamped = await appendEvent({
     prevHash: hashed.eventHash,
     type: "TIMESTAMPED",
-    actorId: "chain.bsv-demo",
-    actorName: "BSV demo miner",
+    actorId: miner.actorId,
+    actorName: miner.actorName,
     contentHash,
     meta: {
       txid: anchor.txid,
       blockHeight: String(anchor.blockHeight),
       opReturn: anchor.opReturnHex,
+      network: anchor.network,
+      source: anchor.source || "demo",
     },
   });
   events.push(timestamped);

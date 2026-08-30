@@ -615,8 +615,14 @@ dd {
   color: var(--cyan);
 }
 
-.chip {
+.chips {
   margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chip {
   border: 1px solid var(--amber-dim);
   background: transparent;
   color: var(--amber);
@@ -625,11 +631,17 @@ dd {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 8px 10px;
+  text-decoration: none;
 }
 
 .chip-pro {
   border-color: var(--ok);
   color: var(--ok);
+}
+
+.chip-live {
+  border-color: var(--cyan);
+  color: var(--cyan);
 }
 
 .banner {
@@ -711,6 +723,13 @@ dd {
 
   .bag-head {
     flex-direction: column;
+  }
+
+  .chips {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 }
 

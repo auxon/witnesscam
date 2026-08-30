@@ -6,16 +6,20 @@ import { EvidenceBagView } from "./components/EvidenceBag";
 import { Ledger } from "./components/Ledger";
 import { VerifyDesk } from "./components/VerifyDesk";
 import { BillingChip } from "./components/BillingChip";
+import { WalletChip } from "./components/WalletChip";
 import { Paywall } from "./components/Paywall";
 import { BillingProvider, useBilling } from "./lib/billing";
+import { WalletProvider } from "./lib/wallet";
 import { navigate, parseHash } from "./lib/router";
 import type { Route } from "./lib/types";
 
 export default function App() {
   return (
-    <BillingProvider>
-      <AppShell />
-    </BillingProvider>
+    <WalletProvider>
+      <BillingProvider>
+        <AppShell />
+      </BillingProvider>
+    </WalletProvider>
   );
 }
 
@@ -72,7 +76,10 @@ function AppShell() {
             </button>
           ))}
         </nav>
-        <BillingChip />
+        <div className="chips">
+          <WalletChip />
+          <BillingChip />
+        </div>
       </header>
       {notice && (
         <p className="banner">

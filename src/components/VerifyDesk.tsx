@@ -188,14 +188,16 @@ export function VerifyDesk({ presetHash }: { presetHash?: string }) {
           <p className="mono wrap">{bag.contentHash}</p>
           {"anchor" in bag && (
             <p className="muted">
-              OP_RETURN {bag.anchor.opReturnHex.slice(0, 24)}… · block #{bag.anchor.blockHeight}
+              OP_RETURN {bag.anchor.opReturnHex.slice(0, 24)}… · {bag.anchor.network}
+              {bag.anchor.blockHeight ? ` · block #${bag.anchor.blockHeight}` : ""}
             </p>
           )}
         </div>
       )}
       {!bag && ledgerHit && (
         <p className="muted">
-          Ledger hit {ledgerHit.bagId} at demo height #{ledgerHit.anchor.blockHeight}. Import the
+          Ledger hit {ledgerHit.bagId} ({ledgerHit.anchor.network}
+          {ledgerHit.anchor.blockHeight ? ` #${ledgerHit.anchor.blockHeight}` : ""}). Import the
           proof to replay the full custody log.
         </p>
       )}

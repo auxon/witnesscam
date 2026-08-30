@@ -18,13 +18,18 @@ export type CustodyEvent = {
   eventHash: string;
 };
 
+export type ChainNetwork = "bsv" | "bsv-test" | "bsv-demo";
+export type ChainSource = "yours" | "yours-agent" | "demo";
+
 export type ChainAnchor = {
-  network: "bsv-demo";
+  network: ChainNetwork;
+  source?: ChainSource;
   opReturnHex: string;
   payloadAsciiPrefix: string;
   txid: string;
   blockHeight: number;
   anchoredAt: string;
+  address?: string;
 };
 
 export type EvidenceBag = {
