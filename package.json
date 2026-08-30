@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 4173",
     "test": "vitest run",
-    "test:e2e": "node scripts/e2e.mjs"
+    "test:e2e": "node scripts/e2e.mjs",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -22,6 +23,7 @@
     "puppeteer-core": "^24.15.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
-    "vitest": "^3.1.2"
+    "vitest": "^3.1.2",
+    "wrangler": "^4.127.1"
   }
 }

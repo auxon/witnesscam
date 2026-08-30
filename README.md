@@ -21,11 +21,21 @@ npm test
 npm run dev
 ```
 
-Open `http://localhost:5173`. Use **Sample still** if the camera is blocked, then **Seal evidence**. Copy the verify link or download `WC-….proof.json`.
+Open `http://localhost:5173/witnesscam/`. Use **Sample still** if the camera is blocked, then **Seal evidence**. Copy the verify link or download `WC-….proof.json`.
 
 ```bash
 npm run test:e2e   # needs the dev server and Chrome
 ```
+
+## Deploy (Cloudflare)
+
+WitnessCam is a Worker with static assets, mounted on the existing `entangleit.com` zone at `/witnesscam*` so the portfolio SPA and `/ASLTutor/` keep their Pages project.
+
+```bash
+npm run deploy
+```
+
+That builds with `base: /witnesscam/` and runs `wrangler deploy`. The Worker strips the prefix before serving `dist/`. Live URL: https://entangleit.com/witnesscam/
 
 ## What is demo vs real
 

@@ -2,7 +2,7 @@ import puppeteer from "puppeteer-core";
 
 const chrome =
   process.env.CHROME || "/usr/bin/google-chrome";
-const base = process.env.BASE_URL || "http://localhost:5173/";
+const base = process.env.BASE_URL || "http://localhost:5173/witnesscam/";
 
 const errors = [];
 const log = [];

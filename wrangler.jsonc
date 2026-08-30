@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "witnesscam",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-08-30",
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "routes": [
+    {
+      "pattern": "entangleit.com/witnesscam*",
+      "zone_name": "entangleit.com"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
