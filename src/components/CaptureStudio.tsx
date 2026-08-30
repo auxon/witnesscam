@@ -37,7 +37,13 @@ export function CaptureStudio() {
   const { requireProForSeal, remaining, entitlement, refresh } = useBilling();
   const wallet = useWallet();
 
+  const field = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+
   useEffect(() => {
+    if (field) {
+      setCam("blocked");
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -64,7 +70,27 @@ export function CaptureStudio() {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
-  }, []);
+  }, [field]);
+
+  async function startLive() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+      }
+      setCam("live");
+      setError(null);
+    } catch {
+      setCam("blocked");
+      setError("Camera permission denied. Use Phone camera to capture from the OS picker.");
+    }
+  }
 
   function setPreview(next: Draft) {
     setDraft((prev) => {
@@ -220,8 +246,9 @@ export function CaptureStudio() {
         </div>
         {cam === "blocked" && !draft && (
           <p className="hint">
-            This device has no camera permission. Seal a file or generate a sample still — the
-            cryptographic path is identical.
+            {field
+              ? "Use Phone camera below. Add WitnessCam to your Home Screen so this page behaves like an app in the field."
+              : "This device has no camera permission. Seal a file or generate a sample still — the cryptographic path is identical."}
           </p>
         )}
       </div>
@@ -231,10 +258,14 @@ export function CaptureStudio() {
         <h2>Seal it like a lab sample.</h2>
         <p className="lede">
           Plaintext never leaves this browser. SHA-256 binds the pixels. AES-256-GCM bags them.
-          An OP_RETURN commits the digest and the custody tip.
+          An RFC 3161 timestamp from DigiCert or Sectigo is the clock of record — the same
+          standard used in code signing. Counsel does not have to explain a coin.
           {wallet.connected || wallet.sidecar
-            ? " Yours is live — this seal broadcasts to BSV."
-            : " Click Connect Yours in the header to stamp on-chain. Without it this seal uses the local demo miner."}
+            ? " Yours is connected, so a public bulletin is added on BSV as well."
+            : " Connect Yours only if you also want a public bulletin board entry."}
+          {entitlement.org
+            ? ` Sealing as ${entitlement.org.name}.`
+            : " Create an org so field phones share one Pro license."}
           {entitlement.pro
             ? " Pro is on — seal without a bag cap."
             : ` ${remaining} free seal${remaining === 1 ? "" : "s"} left on this device.`}
@@ -251,6 +282,11 @@ export function CaptureStudio() {
         <div className="actions">
           {!draft && (
             <>
+              {cam !== "live" && (
+                <button className="btn" onClick={() => void startLive()}>
+                  Live viewfinder
+                </button>
+              )}
               {recording ? (
                 <button className="btn btn-danger" onClick={stopRecording}>
                   Stop
@@ -263,6 +299,34 @@ export function CaptureStudio() {
               <button className="btn" onClick={grabStill} disabled={cam !== "live"}>
                 Still
               </button>
+              <label className="btn btn-amber">
+                Phone camera
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void onFile(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <label className="btn">
+                Phone video
+                <input
+                  type="file"
+                  accept="video/*"
+                  capture="environment"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void onFile(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
               <label className="btn btn-ghost">
                 Upload
                 <input

@@ -13,6 +13,8 @@ export function parseHash(hash: string): Route {
       return { name: "verify", hash: parts[1] };
     case "ledger":
       return { name: "ledger" };
+    case "org":
+      return { name: "org" };
     case "about":
       return { name: "about" };
     default:
@@ -32,6 +34,8 @@ export function toHash(route: Route): string {
       return route.hash ? `#/verify/${route.hash}` : "#/verify";
     case "ledger":
       return "#/ledger";
+    case "org":
+      return "#/org";
     case "about":
       return "#/about";
   }

@@ -1,6 +1,6 @@
 import { concatBytes, fromHex, sha256Hex, toHex } from "./bytes";
-import { nextBlockHeight } from "./device";
-import type { ChainAnchor } from "./types";
+import { stampEvidenceHash } from "./stamp";
+import type { ChainAnchor, Rfc3161Stamp } from "./types";
 import { broadcastOpReturn } from "./yours";
 
 /** ASCII prefix committed in the OP_RETURN payload. */
@@ -62,13 +62,24 @@ export async function mineAnchor(
   };
 }
 
-/** Live Yours broadcast when a wallet is present; otherwise the local demo miner. */
-export async function anchorEvidence(
+export async function stampAndAnchor(
   contentHash: string,
   chainTipHash: string,
-): Promise<ChainAnchor> {
+): Promise<{ rfc3161: Rfc3161Stamp; anchor: ChainAnchor }> {
+  const rfc3161 = await stampEvidenceHash(contentHash);
   const opReturnHex = encodeOpReturn(contentHash, chainTipHash);
   const live = await broadcastOpReturn(opReturnHex);
-  if (live) return live;
-  return mineAnchor(contentHash, chainTipHash, nextBlockHeight());
+  if (live) return { rfc3161, anchor: live };
+  return {
+    rfc3161,
+    anchor: {
+      network: "none",
+      source: "none",
+      opReturnHex,
+      payloadAsciiPrefix: PAYLOAD_PREFIX,
+      txid: "",
+      blockHeight: 0,
+      anchoredAt: rfc3161.genTime,
+    },
+  };
 }

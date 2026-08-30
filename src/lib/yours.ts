@@ -202,7 +202,7 @@ export function pickAddress(raw: unknown): string | null {
 }
 
 export function explorerTxUrl(network: ChainNetwork, txid: string): string | null {
-  if (network === "bsv-demo" || !txid) return null;
+  if (network === "bsv-demo" || network === "none" || !txid) return null;
   const host =
     network === "bsv-test" ? "https://test.whatsonchain.com" : "https://whatsonchain.com";
   return `${host}/tx/${txid}`;
@@ -217,6 +217,9 @@ export function chainActor(anchor: ChainAnchor): { actorId: string; actorName: s
   }
   if (anchor.source === "yours-agent") {
     return { actorId: "yours-agent", actorName: "Yours agent sidecar" };
+  }
+  if (anchor.source === "none" || anchor.network === "none") {
+    return { actorId: "rfc3161", actorName: "RFC 3161 Time Stamp Authority" };
   }
   return { actorId: "chain.bsv-demo", actorName: "BSV demo miner" };
 }

@@ -4,6 +4,11 @@ import {
   PRO_PRICE_CENTS,
   PRO_PRODUCT_NAME,
 } from "./constants";
+import {
+  orgLicenseKey,
+  publicOrg,
+  readOrgForDevice,
+} from "./org";
 import { verifyStripeWebhook } from "./stripeSignature";
 
 export { FREE_SEAL_LIMIT };
@@ -28,6 +33,7 @@ export type BillingEnv = {
 type LicenseRecord = {
   token: string;
   deviceId: string;
+  orgId?: string;
   customerId: string;
   subscriptionId: string;
   email: string;
@@ -45,7 +51,7 @@ type StripeObject = {
   client_reference_id?: string;
   customer_email?: string;
   customer_details?: { email?: string | null };
-  metadata?: { deviceId?: string };
+  metadata?: { deviceId?: string; orgId?: string };
   secret?: string;
   object?: string;
   data?: { object?: StripeObject } | StripeObject[];
@@ -269,6 +275,7 @@ async function existingToken(
   if (license.customerId) keys.push(`customer:${license.customerId}`);
   if (license.subscriptionId) keys.push(`sub:${license.subscriptionId}`);
   if (license.deviceId) keys.push(`device:${license.deviceId}`);
+  if (license.orgId) keys.push(orgLicenseKey(license.orgId));
   for (const key of keys) {
     const hit = await env.LICENSES.get(key);
     if (hit) return hit;
@@ -293,6 +300,7 @@ async function grant(
   const prev = parseLicense(await env.LICENSES.get(`lic:${token}`)) || {
     token,
     deviceId: "",
+    orgId: "",
     customerId: "",
     subscriptionId: "",
     email: "",
@@ -302,6 +310,7 @@ async function grant(
   const record: LicenseRecord = {
     token,
     deviceId: license.deviceId || prev.deviceId || "",
+    orgId: license.orgId || prev.orgId || "",
     customerId: license.customerId || prev.customerId || "",
     subscriptionId: license.subscriptionId || prev.subscriptionId || "",
     email: license.email || prev.email || "",
@@ -319,6 +328,7 @@ async function grant(
   if (record.subscriptionId) {
     writes.push(env.LICENSES.put(`sub:${record.subscriptionId}`, token));
   }
+  if (record.orgId) writes.push(env.LICENSES.put(orgLicenseKey(record.orgId), token));
   await Promise.all(writes);
   return record;
 }
@@ -342,6 +352,12 @@ async function readEntitlement(request: Request, env: BillingEnv) {
     const mapped = await env.LICENSES.get(`device:${deviceId}`);
     rec = parseLicense(mapped ? await env.LICENSES.get(`lic:${mapped}`) : null);
   }
+  const org = await readOrgForDevice(env.LICENSES, deviceId);
+  if (org) {
+    const orgToken = await env.LICENSES.get(orgLicenseKey(org.id));
+    const orgRec = parseLicense(orgToken ? await env.LICENSES.get(`lic:${orgToken}`) : null);
+    if (orgRec?.status === "active") rec = orgRec;
+  }
   const pro = rec?.status === "active";
   return {
     pro,
@@ -349,23 +365,30 @@ async function readEntitlement(request: Request, env: BillingEnv) {
     email: rec?.email || null,
     freeLimit: FREE_SEAL_LIMIT,
     configured: Boolean(env.STRIPE_SECRET_KEY),
+    org: org ? publicOrg(org, deviceId) : null,
   };
 }
 
 async function createCheckout(request: Request, env: BillingEnv) {
   try {
-    const body = (await request.json().catch(() => ({}))) as { deviceId?: string };
+    const body = (await request.json().catch(() => ({}))) as {
+      deviceId?: string;
+      orgId?: string;
+    };
     const deviceId = String(body.deviceId || "").slice(0, 80);
+    const orgId = String(body.orgId || "").slice(0, 80);
     if (!deviceId) return json({ error: "deviceId required" }, 400);
     const origin = originOf(request);
     await ensureWebhook(request, env);
     const session = await stripeForm(env, "checkout/sessions", {
       mode: "subscription",
       success_url: `${origin}${COOKIE_PATH}/api/claim?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}${COOKIE_PATH}/#/`,
-      client_reference_id: deviceId,
+      cancel_url: `${origin}${COOKIE_PATH}/#/org`,
+      client_reference_id: orgId || deviceId,
       "metadata[deviceId]": deviceId,
+      "metadata[orgId]": orgId,
       "subscription_data[metadata][deviceId]": deviceId,
+      "subscription_data[metadata][orgId]": orgId,
       allow_promotion_codes: "true",
       "line_items[0][quantity]": "1",
       "line_items[0][price_data][currency]": "usd",
@@ -373,7 +396,7 @@ async function createCheckout(request: Request, env: BillingEnv) {
       "line_items[0][price_data][recurring][interval]": "month",
       "line_items[0][price_data][product_data][name]": PRO_PRODUCT_NAME,
       "line_items[0][price_data][product_data][description]":
-        "Unlimited sealed evidence bags. Pixels never leave your browser.",
+        "Organization license: unlimited seals, RFC 3161 timestamps, counsel export. Pixels never leave the browser.",
     });
     return json({ url: session.url, id: session.id });
   } catch (err) {
@@ -400,7 +423,8 @@ async function claimCheckout(request: Request, env: BillingEnv) {
       return Response.redirect(fail, 302);
     }
     const record = await grant(env, {
-      deviceId: session.client_reference_id || session.metadata?.deviceId || "",
+      deviceId: session.metadata?.deviceId || session.client_reference_id || "",
+      orgId: session.metadata?.orgId || "",
       customerId: String(session.customer || ""),
       subscriptionId: String(session.subscription || ""),
       email: session.customer_details?.email || session.customer_email || "",
@@ -490,7 +514,8 @@ async function handleWebhook(request: Request, env: BillingEnv) {
       (event.data && !Array.isArray(event.data) ? event.data.object : undefined) ||
       {};
     await grant(env, {
-      deviceId: session.client_reference_id || session.metadata?.deviceId || "",
+      deviceId: session.metadata?.deviceId || "",
+      orgId: session.metadata?.orgId || "",
       customerId: String(session.customer || ""),
       subscriptionId: String(session.subscription || ""),
       email: session.customer_details?.email || session.customer_email || "",

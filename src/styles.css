@@ -58,7 +58,7 @@ video {
 .shell {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 0 20px 80px;
+  padding: 0 20px calc(80px + env(safe-area-inset-bottom));
 }
 
 .tape {
@@ -706,11 +706,19 @@ dd {
 }
 
 @media (max-width: 860px) {
+  .top {
+    flex-wrap: wrap;
+  }
+
   .studio,
   .bag-grid,
   .row,
   .bag-row {
     grid-template-columns: 1fr;
+  }
+
+  .viewfinder {
+    aspect-ratio: 3 / 4;
   }
 
   .strip {
@@ -730,6 +738,48 @@ dd {
     width: 100%;
     justify-content: flex-end;
     flex-wrap: wrap;
+  }
+}
+
+@media (pointer: coarse) {
+  .btn {
+    min-height: 48px;
+    padding: 0 16px;
+  }
+
+  .chip {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+.join-code {
+  font-family: var(--mono);
+  font-size: 28px;
+  letter-spacing: 0.18em;
+  color: var(--amber);
+}
+
+.org-sub {
+  margin: 28px 0 0;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.org-forms {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+@media (max-width: 860px) {
+  .org-forms {
+    grid-template-columns: 1fr;
   }
 }
 

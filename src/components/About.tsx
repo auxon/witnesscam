@@ -29,13 +29,18 @@ export function About() {
           localhost fallback. Without a wallet the same script is mined locally.
         </li>
         <li>
-          <strong>Stripe Pro</strong> pays for the instrument. The first three bags are free.
-          After that it is $9/month via Checkout. Evidence still never leaves the device.
+          <strong>RFC 3161</strong> is the timestamp counsel can explain. DigiCert or Sectigo
+          attest the SHA-256. Bitcoin SV is an optional public bulletin, not the clock of record.
+        </li>
+        <li>
+          <strong>Organizations</strong> share one Pro license across field phones. Join with a
+          short code. The file still never leaves the capturing device.
         </li>
       </ul>
       <p>
-        This build encrypts in the browser. If Yours Wallet (or the yours-agent sidecar) is
-        connected, the timestamp is a live BSV transaction. The payload is always{" "}
+        This build encrypts in the browser. An RFC 3161 Time Stamp Authority attests the digest.
+        If Yours Wallet is connected, a public bulletin is added on BSV. Export a printable
+        certificate for counsel from any bag. The payload is always{" "}
         <code>WC1 || sha256(file) || custodyTip</code>.
       </p>
     </section>

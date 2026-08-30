@@ -64,7 +64,7 @@ try {
   });
   await page.waitForFunction(
     () => location.hash.includes("/bag/"),
-    { timeout: 15000 },
+    { timeout: 25000 },
   );
   log.push(`sealed url=${page.url()}`);
 
@@ -102,7 +102,7 @@ try {
       [...document.querySelectorAll(".log li strong")].some(
         (e) => e.textContent === "TRANSFERRED",
       ),
-    { timeout: 8000 },
+    { timeout: 25000 },
   );
   log.push("transferred");
 

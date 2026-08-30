@@ -9,9 +9,9 @@ This is the first slice of the WitnessCam idea: a browser instrument that seals 
 1. **Capture** — camera still, 15s video, file upload, or a generated sample still (for machines without a camera).
 2. **Encrypt** — AES-256-GCM in WebCrypto. The key stays in IndexedDB on this origin.
 3. **Hash** — SHA-256 of the original bytes. That digest is the identity of the evidence.
-4. **Timestamp** — Yours Wallet (or the yours-agent sidecar) broadcasts `OP_RETURN WC1 || contentHash || custodyTip` to BSV. Without a wallet, the same script is mined locally so the loop still runs.
-5. **Transfer** — append a `TRANSFERRED` event, re-commit the new tip.
-6. **Verify** — drop the original file and/or the public proof JSON. No pixels required to check the chain.
+4. **Timestamp** — An RFC 3161 Time Stamp Authority (DigiCert, then Sectigo, then FreeTSA) attests the SHA-256. That is the clock of record. Yours Wallet may add a public BSV bulletin. Without a TSA the seal fails — we do not invent a timestamp for counsel.
+5. **Transfer** — append a `TRANSFERRED` event, re-stamp the new tip.
+6. **Verify / counsel export** — drop the original file and/or the public proof JSON. Print a chain-of-custody certificate (HTML + `.tsr` token) that a lawyer can read without explaining a cryptocurrency.
 
 ## Run
 
@@ -39,7 +39,9 @@ That builds with `base: /witnesscam/` and runs `wrangler deploy`. The Worker str
 
 ## Stripe
 
-Free tier is **3 sealed bags** per device. After that, **WitnessCam Pro is $9/month** via Stripe Checkout. Evidence still never leaves the browser.
+Free tier is **3 sealed bags** per device. After that, **WitnessCam Pro is $9/month** via Stripe Checkout and covers the **organization** (every field phone that joined with the desk code). Evidence still never leaves the browser.
+
+If you charge US or EU customers, enable [Stripe Tax](https://docs.stripe.com/billing/taxes/collect-taxes.md) in the Dashboard after you have an active tax registration — Checkout will not collect tax until that exists.
 
 Checkout creates the Pro price inline (`price_data`), so you do not need a Dashboard product first. Use a test key (`sk_test_…`) and card `4242 4242 4242 4242` until the loop is proven.
 
@@ -57,6 +59,14 @@ Events: `checkout.session.completed`, `customer.subscription.updated`, `customer
 
 Without those secrets the Worker still serves the app. The paywall shows “Stripe is not configured” and `/api/checkout` returns 503.
 
+## Organizations and field phones
+
+Create a desk under **Org**. Read the join code to a phone. That phone Add-to-Home-Screens the PWA (`Phone camera` uses the OS capture sheet — iOS does not like `getUserMedia` until the user taps). Pro is licensed to the org, not a single browser cookie.
+
+## Counsel timestamp (RFC 3161)
+
+The Worker `POST /api/timestamp` sends only the SHA-256 to a public Time Stamp Authority. The bag stores the token. **Print audit for counsel** emits HTML plus a `.tsr` file. Bitcoin SV is optional and labeled as a public bulletin, not the timestamp of record.
+
 ## Yours Wallet
 
 Live stamps go through [Yours](https://yours.org) / [auxon/yours-agent](https://github.com/auxon/yours-agent):
@@ -73,8 +83,8 @@ The locking script is the existing 67-byte `WC1` payload. Yours gets a 0-sat `sc
 | --- | --- | --- |
 | Capture / encrypt / hash / custody chain | Real, in-browser | Same |
 | OP_RETURN script | Real encoding | Same |
-| Timestamp | Yours Wallet / yours-agent sidecar, else local demo miner | Same |
-| Block height / txid | WhatsOnChain after broadcast; demo height if offline | Bitcoin SV |
+| Timestamp | RFC 3161 TSA (DigiCert / Sectigo); optional Yours bulletin | Same |
+| Block height / txid | TSA genTime always; WhatsOnChain if Yours broadcast | Bitcoin SV optional |
 | Storage | IndexedDB on this origin | Holder-controlled bag + optional encrypted object store |
 
 ## Stack

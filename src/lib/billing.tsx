@@ -6,7 +6,8 @@ import {
   type ReactNode,
 } from "react";
 import { getDevice } from "../lib/device";
-import { listBags } from "../lib/storage";
+import { listBags } from "./storage";
+import { createOrg, type OrgPublic } from "./org";
 import { readBillingFlag } from "./billingFlag";
 
 export const FREE_SEAL_LIMIT = 3;
@@ -17,6 +18,7 @@ export type Entitlement = {
   configured: boolean;
   freeLimit: number;
   email: string | null;
+  org: OrgPublic | null;
 };
 
 type BillingValue = {
@@ -49,6 +51,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     configured: true,
     freeLimit: FREE_SEAL_LIMIT,
     email: null,
+    org: null,
   });
   const [bagCount, setBagCount] = useState(0);
   const [paywall, setPaywall] = useState(false);
@@ -72,6 +75,7 @@ export function BillingProvider({ children }: { children: ReactNode }) {
         configured: data.configured !== false,
         freeLimit: data.freeLimit ?? FREE_SEAL_LIMIT,
         email: data.email || null,
+        org: data.org ?? null,
       });
     } else {
       setEntitlement((prev) => ({ ...prev, configured: false }));
@@ -98,10 +102,21 @@ export function BillingProvider({ children }: { children: ReactNode }) {
     setBusy(true);
     setNotice(null);
     try {
+      const device = getDevice();
+      let orgId = entitlement.org?.id || "";
+      if (!orgId) {
+        const org = await createOrg({
+          name: "WitnessCam desk",
+          deviceId: device.id,
+          displayName: device.label,
+          deviceLabel: device.label,
+        });
+        orgId = org.id;
+      }
       const res = await fetch(apiUrl("checkout"), {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ deviceId: getDevice().id }),
+        body: JSON.stringify({ deviceId: device.id, orgId }),
       });
       const data = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !data.url) {

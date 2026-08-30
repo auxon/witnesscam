@@ -3,6 +3,8 @@
  * entangleit.com/witnesscam* route without colliding with the portfolio SPA.
  */
 import { handleBilling } from "./worker/stripe.ts";
+import { handleOrg } from "./worker/org.ts";
+import { handleTimestamp } from "./worker/timestamp.ts";
 
 const PREFIX = "/witnesscam";
 
@@ -20,8 +22,12 @@ export default {
     }
 
     const stripped = url.pathname.slice(PREFIX.length) || "/";
-    const billed = await handleBilling(request, env, stripped);
+    const billed = await handleTimestamp(request, stripped);
     if (billed) return billed;
+    const orged = await handleOrg(request, env, stripped);
+    if (orged) return orged;
+    const paid = await handleBilling(request, env, stripped);
+    if (paid) return paid;
 
     const assetUrl = new URL(stripped + url.search, url.origin);
     const asset = await env.ASSETS.fetch(new Request(assetUrl, request));

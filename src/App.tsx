@@ -7,6 +7,7 @@ import { Ledger } from "./components/Ledger";
 import { VerifyDesk } from "./components/VerifyDesk";
 import { BillingChip } from "./components/BillingChip";
 import { WalletChip } from "./components/WalletChip";
+import { OrgDesk } from "./components/OrgDesk";
 import { Paywall } from "./components/Paywall";
 import { BillingProvider, useBilling } from "./lib/billing";
 import { WalletProvider } from "./lib/wallet";
@@ -53,6 +54,7 @@ function AppShell() {
             [
               ["studio", "Studio"],
               ["bags", "Locker"],
+              ["org", "Org"],
               ["verify", "Verify"],
               ["ledger", "Ledger"],
               ["about", "Lineage"],
@@ -60,7 +62,12 @@ function AppShell() {
           ).map(([name, label]) => (
             <button
               key={name}
-              className={route.name === name || (name === "bags" && route.name === "bag") ? "is-on" : ""}
+              className={
+                route.name === name ||
+                (name === "bags" && route.name === "bag")
+                  ? "is-on"
+                  : ""
+              }
               onClick={() =>
                 navigate(
                   name === "verify"
@@ -69,9 +76,11 @@ function AppShell() {
                       ? { name: "studio" }
                       : name === "bags"
                         ? { name: "bags" }
-                        : name === "ledger"
-                          ? { name: "ledger" }
-                          : { name: "about" },
+                        : name === "org"
+                          ? { name: "org" }
+                          : name === "ledger"
+                            ? { name: "ledger" }
+                            : { name: "about" },
                 )
               }
             >
@@ -98,6 +107,7 @@ function AppShell() {
         {route.name === "bag" && <EvidenceBagView id={route.id} />}
         {route.name === "verify" && <VerifyDesk presetHash={route.hash} />}
         {route.name === "ledger" && <Ledger />}
+        {route.name === "org" && <OrgDesk />}
         {route.name === "about" && <About />}
       </main>
       <Paywall />

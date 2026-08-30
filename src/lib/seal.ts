@@ -1,8 +1,9 @@
-import { anchorEvidence } from "./chain";
+import { stampAndAnchor } from "./chain";
 import { encryptBytes, generateAesKey, exportKeyB64 } from "./crypto";
 import { sha256Hex } from "./bytes";
 import { GENESIS_PREV, appendEvent, chainTip } from "./custody";
 import { getDevice, holderFromDevice, nextBagId } from "./device";
+import { fetchOrg } from "./org";
 import { saveBag } from "./storage";
 import { chainActor } from "./yours";
 import type { EvidenceBag, MediaKind } from "./types";
@@ -84,21 +85,27 @@ export async function sealEvidence(input: SealInput): Promise<EvidenceBag> {
 
   const events = [captured, encrypted, hashed];
   const tipBeforeAnchor = chainTip(events);
-  const anchor = await anchorEvidence(contentHash, tipBeforeAnchor);
+  const { rfc3161, anchor } = await stampAndAnchor(contentHash, tipBeforeAnchor);
   const miner = chainActor(anchor);
+  const org = await fetchOrg(device.id).catch(() => null);
 
   const timestamped = await appendEvent({
     prevHash: hashed.eventHash,
     type: "TIMESTAMPED",
-    actorId: miner.actorId,
-    actorName: miner.actorName,
+    actorId: `tsa:${rfc3161.tsa}`,
+    actorName: `${rfc3161.tsa} (RFC 3161)`,
     contentHash,
     meta: {
+      rfc3161: "1",
+      tsa: rfc3161.tsa,
+      genTime: rfc3161.genTime,
+      serial: rfc3161.serial,
       txid: anchor.txid,
       blockHeight: String(anchor.blockHeight),
       opReturn: anchor.opReturnHex,
       network: anchor.network,
-      source: anchor.source || "demo",
+      source: anchor.source || "none",
+      bulletin: miner.actorName,
     },
   });
   events.push(timestamped);
@@ -118,9 +125,12 @@ export async function sealEvidence(input: SealInput): Promise<EvidenceBag> {
     deviceLabel: device.label,
     holderId: holder.holderId,
     holderName: holder.holderName,
+    orgId: org?.id,
+    orgName: org?.name,
     events,
     chainTip: chainTip(events),
     anchor,
+    rfc3161,
     filename,
   };
 

@@ -1,9 +1,10 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { witnesscamDevApi } from "./src/dev/viteApi";
 
 export default defineConfig({
   base: "/witnesscam/",
-  plugins: [react()],
+  plugins: [react(), witnesscamDevApi()],
   optimizeDeps: {
     include: ["@1sat/react", "@1sat/connect", "@1sat/actions", "@1sat/client"],
   },

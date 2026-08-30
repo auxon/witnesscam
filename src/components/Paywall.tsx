@@ -11,15 +11,17 @@ export function Paywall() {
         <p className="kicker">WitnessCam Pro</p>
         <h2 id="paywall-title">Three bags on the house.</h2>
         <p className="lede">
-          After that, Pro keeps the chain going. Unlimited seals, same on-device
-          encryption. Stripe handles the money. We never see the pixels.
+          After that, Pro covers the whole organization. Unlimited seals, RFC 3161
+          timestamps counsel can explain, and a printable custody certificate.
+          Stripe handles the money. We never see the pixels.
         </p>
         <p className="price">
           $9<span>/month</span>
         </p>
         <ul className="paywall-list">
-          <li>Unlimited sealed stills and 15s clips</li>
-          <li>Custody transfers and public proofs</li>
+          <li>Unlimited sealed stills and 15s clips for every org device</li>
+          <li>RFC 3161 timestamp (DigiCert / Sectigo) — not a coin</li>
+          <li>Printable chain-of-custody certificate for counsel</li>
           <li>Cancel in the Stripe customer portal</li>
         </ul>
         {notice && <p className="error">{notice}</p>}

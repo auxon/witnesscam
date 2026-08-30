@@ -4,6 +4,7 @@ import { decodeOpReturn } from "../lib/chain";
 import { verifyChain } from "../lib/custody";
 import { getBagByHash, listLedger } from "../lib/storage";
 import type { EvidenceBag, LedgerEntry, PublicProof } from "../lib/types";
+import { downloadCustodyExport, printCustodyCertificate } from "../lib/auditExport";
 import { CustodyStrip } from "./CustodyStrip";
 
 type Verdict =
@@ -186,12 +187,19 @@ export function VerifyDesk({ presetHash }: { presetHash?: string }) {
         <div className="proof-view">
           <CustodyStrip events={bag.events} />
           <p className="mono wrap">{bag.contentHash}</p>
-          {"anchor" in bag && (
+          {"rfc3161" in bag && bag.rfc3161 && (
             <p className="muted">
-              OP_RETURN {bag.anchor.opReturnHex.slice(0, 24)}… · {bag.anchor.network}
-              {bag.anchor.blockHeight ? ` · block #${bag.anchor.blockHeight}` : ""}
+              RFC 3161 · {bag.rfc3161.tsa} · {new Date(bag.rfc3161.genTime).toUTCString()}
             </p>
           )}
+          <div className="actions">
+            <button className="btn btn-amber" onClick={() => void printCustodyCertificate(bag)}>
+              Print audit for counsel
+            </button>
+            <button className="btn" onClick={() => void downloadCustodyExport(bag)}>
+              Download certificate
+            </button>
+          </div>
         </div>
       )}
       {!bag && ledgerHit && (

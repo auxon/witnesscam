@@ -1,8 +1,7 @@
-import { anchorEvidence } from "./chain";
+import { stampAndAnchor } from "./chain";
 import { appendEvent, chainTip } from "./custody";
 import { updateBag } from "./storage";
 import type { EvidenceBag } from "./types";
-import { chainActor } from "./yours";
 
 export async function transferCustody(
   bag: EvidenceBag,
@@ -25,21 +24,22 @@ export async function transferCustody(
     },
   });
 
-  const anchor = await anchorEvidence(bag.contentHash, transferred.eventHash);
-  const miner = chainActor(anchor);
+  const { rfc3161, anchor } = await stampAndAnchor(bag.contentHash, transferred.eventHash);
 
   const timestamped = await appendEvent({
     prevHash: transferred.eventHash,
     type: "TIMESTAMPED",
-    actorId: miner.actorId,
-    actorName: miner.actorName,
+    actorId: `tsa:${rfc3161.tsa}`,
+    actorName: `${rfc3161.tsa} (RFC 3161)`,
     contentHash: bag.contentHash,
     meta: {
+      rfc3161: "1",
+      tsa: rfc3161.tsa,
+      genTime: rfc3161.genTime,
+      serial: rfc3161.serial,
       txid: anchor.txid,
-      blockHeight: String(anchor.blockHeight),
-      opReturn: anchor.opReturnHex,
       network: anchor.network,
-      source: anchor.source || "demo",
+      source: anchor.source || "none",
       reason: "transfer",
     },
   });
@@ -54,6 +54,7 @@ export async function transferCustody(
     events,
     chainTip: chainTip(events),
     anchor,
+    rfc3161,
   };
   await updateBag(next);
   return next;

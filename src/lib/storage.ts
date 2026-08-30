@@ -120,9 +120,11 @@ export function toProof(bag: EvidenceBag): PublicProof {
     capturedAt: bag.capturedAt,
     deviceId: bag.deviceId,
     holderName: bag.holderName,
+    orgName: bag.orgName,
     events: bag.events,
     chainTip: bag.chainTip,
     anchor: bag.anchor,
+    rfc3161: bag.rfc3161,
   };
 }
 

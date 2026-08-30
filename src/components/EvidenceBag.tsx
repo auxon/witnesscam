@@ -6,6 +6,7 @@ import { navigate } from "../lib/router";
 import { getBag, getCiphertext, getKey, toProof } from "../lib/storage";
 import { transferCustody } from "../lib/transfer";
 import type { EvidenceBag } from "../lib/types";
+import { downloadCustodyExport, printCustodyCertificate } from "../lib/auditExport";
 import { explorerTxUrl } from "../lib/yours";
 import { CustodyStrip } from "./CustodyStrip";
 
@@ -83,8 +84,9 @@ export function EvidenceBagView({ id }: { id: string }) {
 
   const proof = JSON.stringify(toProof(bag), null, 2);
   const verifyUrl = `${window.location.origin}${window.location.pathname}#/verify/${bag.contentHash}`;
-  const live = bag.anchor.network !== "bsv-demo";
+  const live = bag.anchor.network !== "bsv-demo" && bag.anchor.network !== "none";
   const explorer = explorerTxUrl(bag.anchor.network, bag.anchor.txid);
+  const tsa = bag.rfc3161;
 
   return (
     <article className="bag">
@@ -128,6 +130,14 @@ export function EvidenceBagView({ id }: { id: string }) {
               <dd className="mono wrap">{bag.chainTip}</dd>
             </div>
             <div>
+              <dt>RFC 3161 timestamp</dt>
+              <dd>
+                {tsa
+                  ? `${tsa.tsa} attested ${new Date(tsa.genTime).toUTCString()}`
+                  : "Not recorded on this bag"}
+              </dd>
+            </div>
+            <div>
               <dt>OP_RETURN</dt>
               <dd className="mono wrap">{bag.anchor.opReturnHex}</dd>
             </div>
@@ -153,9 +163,10 @@ export function EvidenceBagView({ id }: { id: string }) {
             </div>
           </dl>
           <p className="caption">
-            {live
-              ? "Yours Wallet broadcast this OP_RETURN to Bitcoin SV. Pixels still never left the browser."
-              : "No Yours wallet on this device, so the miner is local. Connect Yours to stamp the same script on-chain."}
+            {tsa
+              ? `The clock of record is RFC 3161 (${tsa.tsa}). The file never left this device — only the SHA-256 went to the TSA.`
+              : "No RFC 3161 token on this bag. Re-seal a copy if counsel needs an independent timestamp."}
+            {live ? " A public BSV bulletin was added as well." : ""}
           </p>
         </div>
       </div>
@@ -211,6 +222,15 @@ export function EvidenceBagView({ id }: { id: string }) {
       </form>
 
       <div className="actions">
+        <button
+          className="btn btn-amber"
+          onClick={() => void printCustodyCertificate(bag)}
+        >
+          Print audit for counsel
+        </button>
+        <button className="btn" onClick={() => void downloadCustodyExport(bag)}>
+          Download certificate + .tsr
+        </button>
         <button className="btn" onClick={() => void copy("link", verifyUrl)}>
           {copied === "link" ? "Copied" : "Copy verify link"}
         </button>

@@ -18,8 +18,19 @@ export type CustodyEvent = {
   eventHash: string;
 };
 
-export type ChainNetwork = "bsv" | "bsv-test" | "bsv-demo";
-export type ChainSource = "yours" | "yours-agent" | "demo";
+export type ChainNetwork = "bsv" | "bsv-test" | "bsv-demo" | "none";
+export type ChainSource = "yours" | "yours-agent" | "demo" | "none";
+
+/** Independent RFC 3161 token. Only the SHA-256 left the device. */
+export type Rfc3161Stamp = {
+  tsa: string;
+  tsaUrl: string;
+  hashedMessage: string;
+  genTime: string;
+  tokenB64: string;
+  serial: string;
+  status: number;
+};
 
 export type ChainAnchor = {
   network: ChainNetwork;
@@ -45,9 +56,12 @@ export type EvidenceBag = {
   deviceLabel: string;
   holderId: string;
   holderName: string;
+  orgId?: string;
+  orgName?: string;
   events: CustodyEvent[];
   chainTip: string;
   anchor: ChainAnchor;
+  rfc3161?: Rfc3161Stamp;
   filename: string;
 };
 
@@ -63,9 +77,11 @@ export type PublicProof = {
   capturedAt: string;
   deviceId: string;
   holderName: string;
+  orgName?: string;
   events: CustodyEvent[];
   chainTip: string;
   anchor: ChainAnchor;
+  rfc3161?: Rfc3161Stamp;
 };
 
 export type LedgerEntry = {
@@ -81,4 +97,5 @@ export type Route =
   | { name: "bag"; id: string }
   | { name: "verify"; hash?: string }
   | { name: "ledger" }
+  | { name: "org" }
   | { name: "about" };

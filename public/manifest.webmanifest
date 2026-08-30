@@ -1,0 +1,28 @@
+{
+  "name": "WitnessCam",
+  "short_name": "WitnessCam",
+  "description": "Seal evidence on the device. RFC 3161 timestamp. Counsel-readable custody.",
+  "start_url": "/witnesscam/",
+  "scope": "/witnesscam/",
+  "display": "standalone",
+  "background_color": "#090807",
+  "theme_color": "#090807",
+  "icons": [
+    {
+      "src": "/witnesscam/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/witnesscam/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/witnesscam/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
