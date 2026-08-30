@@ -23,6 +23,10 @@ npm run dev
 
 Open `http://localhost:5173`. Use **Sample still** if the camera is blocked, then **Seal evidence**. Copy the verify link or download `WC-….proof.json`.
 
+```bash
+npm run test:e2e   # needs the dev server and Chrome
+```
+
 ## What is demo vs real
 
 | Piece | This build | Production |
