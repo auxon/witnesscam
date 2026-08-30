@@ -37,6 +37,26 @@ npm run deploy
 
 That builds with `base: /witnesscam/` and runs `wrangler deploy`. The Worker strips the prefix before serving `dist/`. Live URL: https://entangleit.com/witnesscam/
 
+## Stripe
+
+Free tier is **3 sealed bags** per device. After that, **WitnessCam Pro is $9/month** via Stripe Checkout. Evidence still never leaves the browser.
+
+Checkout creates the Pro price inline (`price_data`), so you do not need a Dashboard product first. Use a test key (`sk_test_…`) and card `4242 4242 4242 4242` until the loop is proven.
+
+```bash
+# registers webhook + customer portal, prints STRIPE_WEBHOOK_SECRET
+STRIPE_SECRET_KEY=sk_test_… node scripts/setup-stripe.mjs
+
+npx wrangler secret put STRIPE_SECRET_KEY
+npx wrangler secret put STRIPE_WEBHOOK_SECRET
+```
+
+Webhook endpoint: `https://entangleit.com/witnesscam/api/webhook`
+
+Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+
+Without those secrets the Worker still serves the app. The paywall shows “Stripe is not configured” and `/api/checkout` returns 503.
+
 ## What is demo vs real
 
 | Piece | This build | Production |

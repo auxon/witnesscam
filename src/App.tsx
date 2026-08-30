@@ -5,13 +5,23 @@ import { CaptureStudio } from "./components/CaptureStudio";
 import { EvidenceBagView } from "./components/EvidenceBag";
 import { Ledger } from "./components/Ledger";
 import { VerifyDesk } from "./components/VerifyDesk";
-import { getDevice } from "./lib/device";
+import { BillingChip } from "./components/BillingChip";
+import { Paywall } from "./components/Paywall";
+import { BillingProvider, useBilling } from "./lib/billing";
 import { navigate, parseHash } from "./lib/router";
 import type { Route } from "./lib/types";
 
 export default function App() {
+  return (
+    <BillingProvider>
+      <AppShell />
+    </BillingProvider>
+  );
+}
+
+function AppShell() {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
-  const device = getDevice();
+  const { notice, setNotice } = useBilling();
 
   useEffect(() => {
     const onHash = () => setRoute(parseHash(window.location.hash));
@@ -62,8 +72,16 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <span className="device mono">{device.id}</span>
+        <BillingChip />
       </header>
+      {notice && (
+        <p className="banner">
+          {notice}{" "}
+          <button className="banner-x" onClick={() => setNotice(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
       <main>
         {route.name === "studio" && <CaptureStudio />}
         {route.name === "bags" && <BagsList />}
@@ -72,6 +90,7 @@ export default function App() {
         {route.name === "ledger" && <Ledger />}
         {route.name === "about" && <About />}
       </main>
+      <Paywall />
     </div>
   );
 }

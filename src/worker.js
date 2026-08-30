@@ -2,6 +2,8 @@
  * Strip the /witnesscam prefix so static assets in dist/ map onto the
  * entangleit.com/witnesscam* route without colliding with the portfolio SPA.
  */
+import { handleBilling } from "./worker/stripe.ts";
+
 const PREFIX = "/witnesscam";
 
 export default {
@@ -18,6 +20,9 @@ export default {
     }
 
     const stripped = url.pathname.slice(PREFIX.length) || "/";
+    const billed = await handleBilling(request, env, stripped);
+    if (billed) return billed;
+
     const assetUrl = new URL(stripped + url.search, url.origin);
     const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
     if (asset.status !== 404) return asset;

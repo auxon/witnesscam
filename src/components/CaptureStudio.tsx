@@ -5,6 +5,7 @@ import { getDevice, holderFromDevice, setHolderName } from "../lib/device";
 import { navigate } from "../lib/router";
 import { makeSampleStill } from "../lib/sampleStill";
 import { sealEvidence, type SealProgress } from "../lib/seal";
+import { useBilling } from "../lib/billing";
 import type { MediaKind } from "../lib/types";
 
 type Draft = {
@@ -32,6 +33,7 @@ export function CaptureStudio() {
   const [holderName, setHolder] = useState(
     () => holderFromDevice(getDevice()).holderName,
   );
+  const { requireProForSeal, remaining, entitlement, refresh } = useBilling();
 
   useEffect(() => {
     let cancelled = false;
@@ -166,6 +168,7 @@ export function CaptureStudio() {
 
   async function onSeal() {
     if (!draft) return;
+    if (!requireProForSeal()) return;
     setHolderName(holderName);
     setSealing(true);
     setError(null);
@@ -177,6 +180,7 @@ export function CaptureStudio() {
         filename: draft.filename,
         onProgress: setStep,
       });
+      await refresh();
       navigate({ name: "bag", id: bag.id });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Seal failed");
@@ -226,6 +230,9 @@ export function CaptureStudio() {
         <p className="lede">
           Plaintext never leaves this browser. SHA-256 binds the pixels. AES-256-GCM bags them.
           An OP_RETURN commits the digest and the custody tip.
+          {entitlement.pro
+            ? " Pro is on — seal without a bag cap."
+            : ` ${remaining} free seal${remaining === 1 ? "" : "s"} left on this device.`}
         </p>
         <CustodyStrip liveStep={step ?? undefined} />
         <label className="field">

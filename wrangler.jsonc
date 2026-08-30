@@ -16,7 +16,15 @@
       "zone_name": "entangleit.com"
     }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "LICENSES",
+      "id": "5da10e9f48054880aa41dcbf0f08d1ae",
+      "preview_id": "07c004a054f44f97b9e025cadec16c90"
+    }
+  ],
   "observability": {
     "enabled": true
   }
+  // Secrets (npx wrangler secret put): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 }

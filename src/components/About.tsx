@@ -22,6 +22,10 @@ export function About() {
           <strong>TITUS + BSV</strong> taught the public commitment. A hash in an OP_RETURN is
           a receipt the world can keep even when the file stays dark.
         </li>
+        <li>
+          <strong>Stripe Pro</strong> pays for the instrument. The first three bags are free.
+          After that it is $9/month via Checkout. Evidence still never leaves the device.
+        </li>
       </ul>
       <p>
         This build runs entirely in your browser. The miner is a local demo so you can feel the

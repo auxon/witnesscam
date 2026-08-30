@@ -615,6 +615,84 @@ dd {
   color: var(--cyan);
 }
 
+.chip {
+  margin-left: auto;
+  border: 1px solid var(--amber-dim);
+  background: transparent;
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 8px 10px;
+}
+
+.chip-pro {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.banner {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ok);
+  color: var(--ok);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.banner-x {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+}
+
+.paywall-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(9, 8, 7, 0.82);
+}
+
+.paywall {
+  max-width: 460px;
+  width: 100%;
+  padding: 28px;
+  background: var(--paper);
+  border: 1px solid var(--amber-dim);
+}
+
+.price {
+  margin: 8px 0 18px;
+  font-family: var(--serif);
+  font-size: 56px;
+  line-height: 1;
+}
+
+.price span {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.paywall-list {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+}
+
+.paywall-list li {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
 @media (max-width: 860px) {
   .studio,
   .bag-grid,
