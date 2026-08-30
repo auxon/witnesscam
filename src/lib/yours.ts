@@ -13,6 +13,142 @@ export type YoursSendRequest = {
   data?: string[];
 };
 
+const FATAL_SEND_RE = /user.?reject|denied|invalid.?password|not connected/i;
+
+function sendErrorMessage(sent: { error?: string } | null | undefined, caught?: unknown): string {
+  if (sent?.error) return sent.error;
+  if (caught instanceof Error) return caught.message;
+  if (caught) return String(caught);
+  return "";
+}
+
+function isFatalSendError(message: string): boolean {
+  return FATAL_SEND_RE.test(message);
+}
+
+/** Bare OP_RETURN payload hex (no 6a / length prefix). */
+export function opReturnPayloadHex(scriptHex: string): string {
+  const h = scriptHex.replace(/^0x/i, "").toLowerCase();
+  if (h.startsWith("006a")) {
+    const rest = h.slice(4);
+    if (rest.startsWith("4c") && rest.length >= 6) return rest.slice(4);
+    if (rest.length >= 2) return rest.slice(2);
+  }
+  if (h.startsWith("6a")) {
+    const rest = h.slice(2);
+    if (rest.startsWith("4c") && rest.length >= 6) return rest.slice(4);
+    if (rest.length >= 2) return rest.slice(2);
+  }
+  return h;
+}
+
+/**
+ * Yours (auxon/yours-agent) builds OP_RETURN from `data` as
+ * `OP_0 OP_RETURN <hex chunks>` and rejects a 1-sat value on a
+ * non-spendable script on some builds. Try 0-sat script, then
+ * OP_FALSE-prefixed script, then the data path.
+ */
+export function yoursSendAttempts(scriptHex: string, address?: string | null): YoursSendRequest[][] {
+  const payload = opReturnPayloadHex(scriptHex);
+  const falseReturn = scriptHex.toLowerCase().startsWith("006a") ? scriptHex : `00${scriptHex}`;
+  const attempts: YoursSendRequest[][] = [
+    [{ satoshis: 0, script: scriptHex }],
+    [{ satoshis: 0, script: falseReturn }],
+    [{ satoshis: 0, data: [payload] }],
+    [{ satoshis: 1, script: scriptHex }],
+  ];
+  if (address) {
+    attempts.push([{ satoshis: 1, address, data: [payload] }]);
+  }
+  return attempts;
+}
+
+/**
+ * Current Yours Wallet talks BRC-100 over CWI (`@1sat/connect`).
+ * `window.yours` is the old panda inject and is often absent even when
+ * the extension is installed — same bug SatPress / AI Bounties hit.
+ */
+export type WalletStatus =
+  | "detecting"
+  | "missing"
+  | "available"
+  | "connecting"
+  | "connected";
+
+let activeWallet: unknown = null;
+let identityKey: string | null = null;
+let connectFn: (() => Promise<void>) | null = null;
+let walletStatus: WalletStatus = "detecting";
+const listeners = new Set<() => void>();
+
+function emitWallet() {
+  for (const fn of listeners) fn();
+}
+
+export function subscribeWallet(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
+export function getWalletStatus(): WalletStatus {
+  return walletStatus;
+}
+
+export function getIdentityKey(): string | null {
+  return identityKey;
+}
+
+export function getActiveWallet(): unknown {
+  return activeWallet;
+}
+
+export function registerConnect(fn: () => Promise<void>) {
+  connectFn = fn;
+}
+
+export async function connectYours(): Promise<void> {
+  if (!connectFn) {
+    throw new Error("Yours Wallet is not ready yet. Refresh and try again.");
+  }
+  await connectFn();
+  for (let i = 0; i < 50 && walletStatus !== "connected"; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  if (walletStatus !== "connected") {
+    throw new Error(
+      "Yours Wallet did not connect. Unlock the extension and allow this site, then try Connect Yours again.",
+    );
+  }
+}
+
+/** Map `@1sat/react` status. Idle `disconnected` is "not connected yet", not "missing". */
+export function syncFromProvider(input: {
+  status: "disconnected" | "detecting" | "selecting" | "connecting" | "connected";
+  wallet: unknown;
+  identityKey: string | null;
+  hasProviders: boolean;
+}) {
+  if (input.status === "connected" && input.wallet) {
+    activeWallet = input.wallet;
+    identityKey = input.identityKey;
+    walletStatus = "connected";
+  } else {
+    activeWallet = null;
+    identityKey = null;
+    if (input.status === "connecting") {
+      walletStatus = "connecting";
+    } else if (input.status === "detecting") {
+      walletStatus = walletStatus === "connected" ? "available" : "detecting";
+    } else {
+      // Idle disconnected, or selecting after a failed race: show Connect, not missing.
+      walletStatus = "available";
+    }
+  }
+  emitWallet();
+}
+
 export type YoursProvider = {
   isReady?: boolean;
   connect: () => Promise<unknown>;
@@ -124,7 +260,7 @@ export async function sidecarUp(
   }
 }
 
-async function lookupHeight(
+export async function lookupHeight(
   txid: string,
   network: ChainNetwork,
   fetchImpl: FetchLike = fetch,
@@ -159,10 +295,28 @@ async function fromExtension(
   const network = normalizeNetwork(networkRaw);
   const address = pickAddress(addresses);
 
-  const sent = await provider.sendBsv([{ satoshis: 1, script: scriptHex }]);
-  if (sent?.error) throw new Error(sent.error);
-  const txid = sent?.txid;
-  if (!txid || txid.length < 32) throw new Error("Yours Wallet did not return a txid");
+  let lastError = "Yours Wallet did not return a txid";
+  let txid = "";
+  for (const req of yoursSendAttempts(scriptHex, address)) {
+    try {
+      const sent = await provider.sendBsv(req);
+      const err = sendErrorMessage(sent);
+      if (err) {
+        lastError = err;
+        if (isFatalSendError(err)) break;
+        continue;
+      }
+      if (sent?.txid && sent.txid.length >= 32) {
+        txid = sent.txid;
+        break;
+      }
+      lastError = "Yours Wallet did not return a txid";
+    } catch (caught) {
+      lastError = sendErrorMessage(null, caught) || lastError;
+      if (isFatalSendError(lastError)) break;
+    }
+  }
+  if (!txid || txid.length < 32) throw new Error(lastError);
 
   return {
     network,
@@ -187,7 +341,7 @@ async function fromSidecar(
       outputs: [
         {
           lockingScript: scriptHex,
-          satoshis: 1,
+          satoshis: 0,
           outputDescription: "WC1 content hash + custody tip",
         },
       ],
@@ -266,15 +420,21 @@ export async function probeWallet(
 }
 
 /**
- * Broadcast `scriptHex` (full OP_RETURN locking script) via Yours extension,
- * then the local yours-agent sidecar. Returns null when neither is available
- * so the caller can fall back to the demo miner.
+ * Broadcast `scriptHex` (full OP_RETURN locking script) via BRC-100 Yours,
+ * then the legacy `window.yours` inject, then the local yours-agent sidecar.
+ * Returns null when none of those are available so the caller can fall back
+ * to the demo miner.
  */
 export async function broadcastOpReturn(
   scriptHex: string,
   win: Window = window,
   fetchImpl: FetchLike = fetch,
 ): Promise<ChainAnchor | null> {
+  const wallet = getActiveWallet();
+  if (wallet) {
+    const { broadcastBrc100 } = await import("./onesat");
+    return broadcastBrc100(scriptHex, wallet, getIdentityKey(), fetchImpl);
+  }
   const provider = getYours(win);
   if (provider) {
     return fromExtension(scriptHex, provider, fetchImpl);

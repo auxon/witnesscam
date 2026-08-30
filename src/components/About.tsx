@@ -23,9 +23,10 @@ export function About() {
           a receipt the world can keep even when the file stays dark.
         </li>
         <li>
-          <strong>Yours Wallet</strong> broadcasts that receipt. The{" "}
-          <a href="https://github.com/auxon/yours-agent">auxon/yours-agent</a> extension or MCP
-          sidecar sends the OP_RETURN on-chain. Without a wallet the same script is mined locally.
+          <strong>Yours Wallet</strong> broadcasts that receipt over BRC-100 (CWI), same stack as
+          SatPress. The{" "}
+          <a href="https://github.com/auxon/yours-agent">auxon/yours-agent</a> sidecar is a
+          localhost fallback. Without a wallet the same script is mined locally.
         </li>
         <li>
           <strong>Stripe Pro</strong> pays for the instrument. The first three bags are free.

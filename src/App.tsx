@@ -10,16 +10,19 @@ import { WalletChip } from "./components/WalletChip";
 import { Paywall } from "./components/Paywall";
 import { BillingProvider, useBilling } from "./lib/billing";
 import { WalletProvider } from "./lib/wallet";
+import { YoursWalletProvider } from "./components/YoursWalletProvider";
 import { navigate, parseHash } from "./lib/router";
 import type { Route } from "./lib/types";
 
 export default function App() {
   return (
-    <WalletProvider>
-      <BillingProvider>
-        <AppShell />
-      </BillingProvider>
-    </WalletProvider>
+    <YoursWalletProvider>
+      <WalletProvider>
+        <BillingProvider>
+          <AppShell />
+        </BillingProvider>
+      </WalletProvider>
+    </YoursWalletProvider>
   );
 }
 

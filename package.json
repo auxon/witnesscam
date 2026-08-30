@@ -12,6 +12,11 @@
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
+    "@1sat/actions": "^0.0.197",
+    "@1sat/client": "^0.0.49",
+    "@1sat/connect": "^0.0.88",
+    "@1sat/react": "^0.0.85",
+    "@bsv/sdk": "^2.4.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

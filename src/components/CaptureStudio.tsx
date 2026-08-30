@@ -234,7 +234,7 @@ export function CaptureStudio() {
           An OP_RETURN commits the digest and the custody tip.
           {wallet.connected || wallet.sidecar
             ? " Yours is live — this seal broadcasts to BSV."
-            : " No wallet yet — this seal uses the local demo miner."}
+            : " Click Connect Yours in the header to stamp on-chain. Without it this seal uses the local demo miner."}
           {entitlement.pro
             ? " Pro is on — seal without a bag cap."
             : ` ${remaining} free seal${remaining === 1 ? "" : "s"} left on this device.`}

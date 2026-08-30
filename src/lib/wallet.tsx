@@ -6,13 +6,17 @@ import {
   type ReactNode,
 } from "react";
 import {
-  getYours,
+  connectYours,
+  getIdentityKey,
+  getWalletStatus,
   probeWallet,
-  YOURS_EXTENSION_URL,
+  subscribeWallet,
   type WalletProbe,
+  type WalletStatus,
 } from "./yours";
 
 type WalletValue = WalletProbe & {
+  phase: WalletStatus;
   refresh: () => Promise<void>;
   connect: () => Promise<void>;
   busy: boolean;
@@ -32,25 +36,43 @@ const empty: WalletProbe = {
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [probe, setProbe] = useState<WalletProbe>(empty);
+  const [phase, setPhase] = useState<WalletStatus>(() => getWalletStatus());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
     try {
-      setProbe(await probeWallet());
+      const status = getWalletStatus();
+      setPhase(status);
+      const sidecarProbe = await probeWallet();
+      const identity = getIdentityKey();
+      const connected = status === "connected";
+      setProbe({
+        extension: status !== "missing",
+        sidecar: sidecarProbe.sidecar,
+        connected: connected || sidecarProbe.source === "yours-agent",
+        address: identity || sidecarProbe.address,
+        network: connected ? "bsv" : sidecarProbe.network,
+        source: connected ? "yours" : sidecarProbe.source,
+      });
     } catch {
       setProbe(empty);
+      setPhase(getWalletStatus());
     }
   }
 
   useEffect(() => {
     void refresh();
+    const unsub = subscribeWallet(() => {
+      void refresh();
+    });
     const onVis = () => {
       if (document.visibilityState === "visible") void refresh();
     };
     document.addEventListener("visibilitychange", onVis);
     const id = window.setInterval(() => void refresh(), 12_000);
     return () => {
+      unsub();
       document.removeEventListener("visibilitychange", onVis);
       window.clearInterval(id);
     };
@@ -60,12 +82,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setBusy(true);
     setError(null);
     try {
-      const provider = getYours();
-      if (!provider) {
-        window.open(YOURS_EXTENSION_URL, "_blank", "noopener,noreferrer");
-        return;
-      }
-      await provider.connect();
+      await connectYours();
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Yours connect failed");
@@ -75,7 +92,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WalletContext.Provider value={{ ...probe, refresh, connect, busy, error }}>
+    <WalletContext.Provider value={{ ...probe, phase, refresh, connect, busy, error }}>
       {children}
     </WalletContext.Provider>
   );

@@ -61,11 +61,11 @@ Without those secrets the Worker still serves the app. The paywall shows “Stri
 
 Live stamps go through [Yours](https://yours.org) / [auxon/yours-agent](https://github.com/auxon/yours-agent):
 
-1. Browser extension (`window.yours.sendBsv`) — install [Yours Wallet](https://chromewebstore.google.com/detail/yours-wallet/mlbnicldlpdimbjdcncnklfempedeipj) and click **Connect Yours**.
-2. Agent sidecar on `http://127.0.0.1:3321` — only from `http://localhost` (HTTPS pages cannot call the sidecar). MCP tools `create_action` / `send_bsv` are the same wallet.
-3. Demo miner if neither is present.
+1. `@1sat/react` `WalletProvider` (`autoReconnect` + `autoDetect`) — BRC-100 / CWI. Current Yours does **not** inject `window.yours`; that legacy panda API is a fallback only. Click **Connect Yours**.
+2. Agent sidecar on `http://127.0.0.1:3321` — only from `http://localhost` (HTTPS pages cannot call the sidecar).
+3. Demo miner if neither is connected.
 
-The locking script is the existing 67-byte `WC1` payload, sent as a 1-sat OP_RETURN output.
+The locking script is the existing 67-byte `WC1` payload. Yours gets a 0-sat `script` first, then `OP_FALSE OP_RETURN`, then the `data` path, then a 1-sat fallback — some builds reject a 1-sat OP_RETURN.
 
 ## What is demo vs real
 
