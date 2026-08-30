@@ -46,7 +46,9 @@ type StripeObject = {
   customer_email?: string;
   customer_details?: { email?: string | null };
   metadata?: { deviceId?: string };
-  data?: { object?: StripeObject };
+  secret?: string;
+  object?: string;
+  data?: { object?: StripeObject } | StripeObject[];
   type?: string;
 };
 
@@ -67,6 +69,10 @@ export async function handleBilling(
 
   if (strippedPath === "/api/checkout" && request.method === "POST") {
     return createCheckout(request, env);
+  }
+
+  if (strippedPath === "/api/setup-stripe" && request.method === "POST") {
+    return setupStripe(request, env);
   }
 
   if (strippedPath === "/api/claim" && request.method === "GET") {
@@ -155,6 +161,98 @@ async function stripeGet(env: BillingEnv, path: string): Promise<StripeObject> {
     throw new Error(data?.error?.message || `Stripe ${res.status}`);
   }
   return data;
+}
+
+async function stripeGetList(env: BillingEnv, path: string): Promise<StripeObject[]> {
+  const payload = (await stripeGet(env, path)) as StripeObject & {
+    data?: StripeObject[];
+  };
+  return Array.isArray(payload.data) ? payload.data : [];
+}
+
+function publicOrigin(request: Request): string {
+  const url = new URL(request.url);
+  if (url.hostname.endsWith("workers.dev")) return "https://entangleit.com";
+  return url.origin;
+}
+
+const WHSEC_KV = "stripe:webhook_secret";
+const WEBHOOK_EVENTS = [
+  "checkout.session.completed",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+];
+
+async function webhookSecret(env: BillingEnv): Promise<string> {
+  if (env.STRIPE_WEBHOOK_SECRET) return env.STRIPE_WEBHOOK_SECRET;
+  return (await env.LICENSES.get(WHSEC_KV)) || "";
+}
+
+async function ensureWebhook(request: Request, env: BillingEnv): Promise<{
+  id: string | null;
+  created: boolean;
+  error?: string;
+}> {
+  const existing = await webhookSecret(env);
+  const hookUrl = `${publicOrigin(request)}${COOKIE_PATH}/api/webhook`;
+  try {
+    const listed = await stripeGetList(env, "webhook_endpoints?limit=100");
+    const hit = listed.find((h) => h.url === hookUrl);
+    if (hit?.id && existing) return { id: hit.id, created: false };
+    if (hit?.id && !existing) {
+      return {
+        id: hit.id,
+        created: false,
+        error: "webhook exists; signing secret is only returned at creation",
+      };
+    }
+    const params: Record<string, string> = {
+      url: hookUrl,
+      description: "WitnessCam Pro licenses",
+    };
+    WEBHOOK_EVENTS.forEach((event, i) => {
+      params[`enabled_events[${i}]`] = event;
+    });
+    const created = await stripeForm(env, "webhook_endpoints", params);
+    if (created.secret) await env.LICENSES.put(WHSEC_KV, created.secret);
+    return { id: created.id || null, created: true };
+  } catch (err) {
+    return {
+      id: null,
+      created: false,
+      error: err instanceof Error ? err.message : "webhook setup failed",
+    };
+  }
+}
+
+async function expireProbeSessions(env: BillingEnv): Promise<number> {
+  try {
+    const sessions = await stripeGetList(env, "checkout/sessions?limit=20");
+    let n = 0;
+    for (const session of sessions) {
+      if (session.client_reference_id !== "setup-1") continue;
+      if (session.status && session.status !== "open") continue;
+      if (!session.id) continue;
+      await stripeForm(env, `checkout/sessions/${session.id}/expire`, {});
+      n += 1;
+    }
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
+async function setupStripe(request: Request, env: BillingEnv) {
+  if (!env.STRIPE_SECRET_KEY) {
+    return json({ error: "STRIPE_SECRET_KEY is not set" }, 503);
+  }
+  const webhook = await ensureWebhook(request, env);
+  const expired = await expireProbeSessions(env);
+  return json({
+    ok: !webhook.error || Boolean(webhook.id),
+    webhook,
+    expiredProbeSessions: expired,
+  });
 }
 
 function newToken() {
@@ -260,6 +358,7 @@ async function createCheckout(request: Request, env: BillingEnv) {
     const deviceId = String(body.deviceId || "").slice(0, 80);
     if (!deviceId) return json({ error: "deviceId required" }, 400);
     const origin = originOf(request);
+    await ensureWebhook(request, env);
     const session = await stripeForm(env, "checkout/sessions", {
       mode: "subscription",
       success_url: `${origin}${COOKIE_PATH}/api/claim?session_id={CHECKOUT_SESSION_ID}`,
@@ -367,7 +466,7 @@ async function handleWebhook(request: Request, env: BillingEnv) {
   const ok = await verifyStripeWebhook(
     payload,
     sig,
-    env.STRIPE_WEBHOOK_SECRET || "",
+    await webhookSecret(env),
   );
   if (!ok) return json({ error: "invalid signature" }, 400);
 
@@ -387,7 +486,9 @@ async function handleWebhook(request: Request, env: BillingEnv) {
   }
 
   if (event.type === "checkout.session.completed") {
-    const session = event.data?.object || {};
+    const session =
+      (event.data && !Array.isArray(event.data) ? event.data.object : undefined) ||
+      {};
     await grant(env, {
       deviceId: session.client_reference_id || session.metadata?.deviceId || "",
       customerId: String(session.customer || ""),
@@ -401,7 +502,9 @@ async function handleWebhook(request: Request, env: BillingEnv) {
     event.type === "customer.subscription.deleted" ||
     event.type === "customer.subscription.updated"
   ) {
-    const sub = event.data?.object || {};
+    const sub =
+      (event.data && !Array.isArray(event.data) ? event.data.object : undefined) ||
+      {};
     const status = sub.status;
     if (status === "canceled" || status === "unpaid" || status === "incomplete_expired") {
       if (sub.id) await revokeBySubscription(env, sub.id);

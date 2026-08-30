@@ -50,6 +50,15 @@ describe("billing routes", () => {
     expect(res?.status).toBe(503);
   });
 
+  it("returns 503 from setup-stripe when Stripe is not configured", async () => {
+    const env = { LICENSES: memoryKv() };
+    const req = new Request("https://entangleit.com/witnesscam/api/setup-stripe", {
+      method: "POST",
+    });
+    const res = await handleBilling(req, env, "/api/setup-stripe");
+    expect(res?.status).toBe(503);
+  });
+
   it("ignores non-API paths", async () => {
     const env = { LICENSES: memoryKv() };
     const req = new Request("https://entangleit.com/witnesscam/");
