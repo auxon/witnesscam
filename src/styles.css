@@ -336,7 +336,7 @@ h2 {
   margin: 8px 0 4px;
 }
 
-.btn-panic {
+.btn.btn-panic {
   width: 100%;
   min-height: 52px;
   background: #8f2416;
@@ -348,7 +348,7 @@ h2 {
   text-transform: uppercase;
 }
 
-.btn-panic:hover:not(:disabled) {
+.btn.btn-panic:hover:not(:disabled) {
   background: var(--seal);
 }
 
@@ -855,7 +855,7 @@ dd {
     margin: 16px 0 8px;
   }
 
-  .btn-panic {
+  .btn.btn-panic {
     min-height: 56px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   }
@@ -883,7 +883,7 @@ dd {
     z-index: 20;
   }
 
-  .btn-panic {
+  .btn.btn-panic {
     min-height: 56px;
   }
 }
