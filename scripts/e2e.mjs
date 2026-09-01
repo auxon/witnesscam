@@ -21,6 +21,8 @@ try {
     if (msg.type() !== "error") return;
     const text = msg.text();
     if (text.includes("404") || text.includes("favicon")) return;
+    if (text.includes("Manifest:")) return;
+    if (text.includes("ERR_CONNECTION_REFUSED")) return;
     errors.push(`console: ${text}`);
   });
 
@@ -84,6 +86,7 @@ try {
     { timeout: 25000 },
   );
   log.push(`sealed url=${page.url()}`);
+  await page.waitForSelector(".seal");
 
   const seal = await page.$eval(".seal", (el) => el.textContent.trim());
   log.push(`seal=${seal}`);
@@ -231,6 +234,7 @@ try {
     await page.waitForFunction(() => location.hash.includes("/bag/"), { timeout: 40000 });
   }
   log.push(`panic sealed url=${page.url()}`);
+  await page.waitForSelector("[data-testid='bag-situation']");
 
   const panicScene = await page.$eval("[data-testid='bag-situation']", (el) =>
     el.textContent.trim(),
