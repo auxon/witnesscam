@@ -22,6 +22,8 @@ export async function buildCustodyCertificate(bag: EvidenceBag | PublicProof): P
   const explorer = explorerTxUrl(bag.anchor.network, bag.anchor.txid);
   const org = "orgName" in bag ? bag.orgName : undefined;
   const bagId = "id" in bag ? bag.id : bag.bagId;
+  const situation = bag.situation;
+  const sceneLabel = bag.sceneLabel;
 
   const rows = bag.events
     .map(
@@ -90,6 +92,8 @@ export async function buildCustodyCertificate(bag: EvidenceBag | PublicProof): P
     <h2>Item</h2>
     <table class="kv">
       <tr><th>Kind</th><td>${esc(bag.kind)}</td></tr>
+      ${situation ? `<tr><th>Situation</th><td>${esc(situation)}</td></tr>` : ""}
+      ${sceneLabel ? `<tr><th>Scene label</th><td>${esc(sceneLabel)}</td></tr>` : ""}
       <tr><th>Captured</th><td>${esc(when(bag.capturedAt))}</td></tr>
       <tr><th>Original holder</th><td>${esc(bag.holderName)}</td></tr>
       ${org ? `<tr><th>Organization</th><td>${esc(org)}</td></tr>` : ""}

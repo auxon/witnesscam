@@ -6,7 +6,7 @@ This is the first slice of the WitnessCam idea: a browser instrument that seals 
 
 ## Loop
 
-1. **Capture** — camera still, 15s video, file upload, or a generated sample still (for machines without a camera).
+1. **Capture** — camera still, 15s video, file upload, or a generated sample still (for machines without a camera). Tag a **situation preset** (Landlord, Delivery, Roadside, Workplace, Night walk, Other) so counsel sees the scene. **Panic** is one tap: record 15s if the camera is live, otherwise Phone camera / Sample still, then the same on-device seal.
 2. **Encrypt** — AES-256-GCM in WebCrypto. The key stays in IndexedDB on this origin.
 3. **Hash** — SHA-256 of the original bytes. That digest is the identity of the evidence.
 4. **Timestamp** — An RFC 3161 Time Stamp Authority (DigiCert, then Sectigo, then FreeTSA) attests the SHA-256. That is the clock of record. Yours Wallet may add a public BSV bulletin. Without a TSA the seal fails — we do not invent a timestamp for counsel.
@@ -21,11 +21,26 @@ npm test
 npm run dev
 ```
 
-Open `http://localhost:5173/witnesscam/`. Use **Sample still** if the camera is blocked, then **Seal evidence**. Copy the verify link or download `WC-….proof.json`.
+Open `http://localhost:5173/witnesscam/`. Pick **Landlord** (or another preset), use **Sample still** if the camera is blocked, then **Seal evidence**. Or tap **Panic** — with no camera it offers Sample still and auto-seals. Situation shows on the bag, locker row, and **Print audit for counsel**. Copy the verify link or download `WC-….proof.json`.
 
 ```bash
 npm run test:e2e   # needs the dev server and Chrome
 ```
+
+## Situation presets and Panic
+
+Presets are metadata only. They do not change AES-256-GCM, SHA-256, RFC 3161, or the custody hash chain. The last-used preset is stored in `localStorage` on this device.
+
+| Preset | Default scene label |
+| --- | --- |
+| Landlord | Apt hallway |
+| Delivery | Porch delivery |
+| Roadside | Roadside stop |
+| Workplace | Workplace |
+| Night walk | Night walk |
+| Other | (free-text situation label) |
+
+**Panic** respects the free-tier paywall (3 seals/device). If no preset is selected it uses the last-used chip, or **Night walk**. Media still never leaves the browser.
 
 ## Deploy (Cloudflare)
 

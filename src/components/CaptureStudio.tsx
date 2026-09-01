@@ -1,10 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { CustodyStrip } from "./CustodyStrip";
+import { SituationPresets } from "./SituationPresets";
 import { formatBytes } from "../lib/bytes";
 import { getDevice, holderFromDevice, setHolderName } from "../lib/device";
 import { navigate } from "../lib/router";
 import { makeSampleStill } from "../lib/sampleStill";
 import { sealEvidence, type SealProgress } from "../lib/seal";
+import {
+  coachOpen,
+  dismissCoach,
+  ensurePanicPreset,
+  loadLastSituation,
+  panicCapturePath,
+  saveLastSituation,
+  sceneForPreset,
+  situationContext,
+  type SituationPresetId,
+} from "../lib/situation";
 import { useBilling } from "../lib/billing";
 import { useWallet } from "../lib/wallet";
 import type { MediaKind } from "../lib/types";
@@ -17,13 +29,24 @@ type Draft = {
   previewUrl: string;
 };
 
+function vibrate() {
+  try {
+    navigator.vibrate?.(40);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function CaptureStudio() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
+  const panicRef = useRef(false);
+  const camRef = useRef<"pending" | "live" | "blocked">("pending");
 
+  const last = loadLastSituation();
   const [cam, setCam] = useState<"pending" | "live" | "blocked">("pending");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [recording, setRecording] = useState(false);
@@ -31,6 +54,14 @@ export function CaptureStudio() {
   const [sealing, setSealing] = useState(false);
   const [step, setStep] = useState<SealProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [panicFallback, setPanicFallback] = useState(false);
+  const [panicArmed, setPanicArmed] = useState(false);
+  const [coach, setCoach] = useState(() => coachOpen());
+  const [presetId, setPresetId] = useState<SituationPresetId | null>(
+    () => last?.presetId ?? null,
+  );
+  const [customLabel, setCustomLabel] = useState(() => last?.customLabel ?? "");
+  const [sceneLabel, setSceneLabel] = useState(() => last?.sceneLabel ?? "");
   const [holderName, setHolder] = useState(
     () => holderFromDevice(getDevice()).holderName,
   );
@@ -38,6 +69,17 @@ export function CaptureStudio() {
   const wallet = useWallet();
 
   const field = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  camRef.current = cam;
+
+  const situationState = { presetId, customLabel, sceneLabel };
+  const situationRef = useRef(situationState);
+  situationRef.current = situationState;
+  const holderRef = useRef(holderName);
+  holderRef.current = holderName;
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const sealingRef = useRef(sealing);
+  sealingRef.current = sealing;
 
   useEffect(() => {
     if (field) {
@@ -72,6 +114,49 @@ export function CaptureStudio() {
     };
   }, [field]);
 
+  function persistSituation(next: {
+    presetId: SituationPresetId | null;
+    customLabel: string;
+    sceneLabel: string;
+  }) {
+    if (!next.presetId) return;
+    saveLastSituation({
+      presetId: next.presetId,
+      customLabel: next.customLabel,
+      sceneLabel: next.sceneLabel,
+    });
+  }
+
+  function selectPreset(id: SituationPresetId) {
+    const nextScene = sceneForPreset(id, presetId, sceneLabel);
+    setPresetId(id);
+    setSceneLabel(nextScene);
+    situationRef.current = { presetId: id, customLabel, sceneLabel: nextScene };
+    persistSituation({ presetId: id, customLabel, sceneLabel: nextScene });
+  }
+
+  function applyPanicPreset() {
+    const id = ensurePanicPreset(situationRef.current.presetId);
+    if (id === situationRef.current.presetId) {
+      persistSituation(situationRef.current);
+      return;
+    }
+    const nextScene = sceneForPreset(
+      id,
+      situationRef.current.presetId,
+      situationRef.current.sceneLabel,
+    );
+    const next = {
+      presetId: id,
+      customLabel: situationRef.current.customLabel,
+      sceneLabel: nextScene,
+    };
+    setPresetId(id);
+    setSceneLabel(nextScene);
+    situationRef.current = next;
+    persistSituation(next);
+  }
+
   async function startLive() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -100,9 +185,16 @@ export function CaptureStudio() {
     setError(null);
   }
 
+  async function finishCapture(next: Draft) {
+    setPreview(next);
+    if (panicRef.current) {
+      await sealNow(next);
+    }
+  }
+
   async function grabStill() {
     const video = videoRef.current;
-    if (!video || cam !== "live") {
+    if (!video || camRef.current !== "live") {
       setError("Camera is not live. Use upload or sample still.");
       return;
     }
@@ -119,7 +211,7 @@ export function CaptureStudio() {
         0.92,
       );
     });
-    setPreview({
+    await finishCapture({
       bytes: await blob.arrayBuffer(),
       kind: "still",
       mimeType: "image/jpeg",
@@ -150,15 +242,17 @@ export function CaptureStudio() {
     recorder.ondataavailable = (ev) => {
       if (ev.data.size > 0) chunksRef.current.push(ev.data);
     };
-    recorder.onstop = async () => {
+    recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: mime });
-      setPreview({
-        bytes: await blob.arrayBuffer(),
-        kind: "video",
-        mimeType: blob.type,
-        filename: `witness-${Date.now()}.webm`,
-        previewUrl: URL.createObjectURL(blob),
-      });
+      void (async () => {
+        await finishCapture({
+          bytes: await blob.arrayBuffer(),
+          kind: "video",
+          mimeType: blob.type,
+          filename: `witness-${Date.now()}.webm`,
+          previewUrl: URL.createObjectURL(blob),
+        });
+      })();
     };
     recorder.start(200);
     recorderRef.current = recorder;
@@ -174,7 +268,7 @@ export function CaptureStudio() {
 
   async function onFile(file: File) {
     const kind: MediaKind = file.type.startsWith("video/") ? "video" : "still";
-    setPreview({
+    await finishCapture({
       bytes: await file.arrayBuffer(),
       kind,
       mimeType: file.type || "application/octet-stream",
@@ -185,7 +279,7 @@ export function CaptureStudio() {
 
   async function onSample() {
     const sample = await makeSampleStill();
-    setPreview({
+    await finishCapture({
       bytes: sample.bytes,
       kind: "still",
       mimeType: sample.mimeType,
@@ -194,33 +288,101 @@ export function CaptureStudio() {
     });
   }
 
-  async function onSeal() {
-    if (!draft) return;
-    if (!requireProForSeal()) return;
-    setHolderName(holderName);
+  async function sealNow(next: Draft) {
+    if (sealingRef.current) return;
+    if (!requireProForSeal()) {
+      panicRef.current = false;
+      setPanicArmed(false);
+      setSealing(false);
+      return;
+    }
+    setHolderName(holderRef.current);
     setSealing(true);
+    sealingRef.current = true;
     setError(null);
     try {
       const bag = await sealEvidence({
-        bytes: draft.bytes,
-        kind: draft.kind,
-        mimeType: draft.mimeType,
-        filename: draft.filename,
+        bytes: next.bytes,
+        kind: next.kind,
+        mimeType: next.mimeType,
+        filename: next.filename,
+        situation: situationContext(situationRef.current),
         onProgress: setStep,
       });
+      panicRef.current = false;
+      setPanicArmed(false);
       await refresh();
       navigate({ name: "bag", id: bag.id });
     } catch (err) {
+      panicRef.current = false;
+      setPanicArmed(false);
       setError(err instanceof Error ? err.message : "Seal failed");
       setSealing(false);
+      sealingRef.current = false;
       setStep(null);
     }
   }
 
+  async function onSeal() {
+    if (!draft) return;
+    await sealNow(draft);
+  }
+
+  async function waitForLive(ms: number): Promise<boolean> {
+    const start = Date.now();
+    while (Date.now() - start < ms) {
+      if (camRef.current === "live" && streamRef.current) return true;
+      if (camRef.current === "blocked") return false;
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+    }
+    return camRef.current === "live" && Boolean(streamRef.current);
+  }
+
+  async function onPanic() {
+    if (sealingRef.current || recording) return;
+    if (!requireProForSeal()) return;
+    vibrate();
+    applyPanicPreset();
+    panicRef.current = true;
+    setPanicArmed(true);
+    setPanicFallback(false);
+    setError(null);
+
+    if (draftRef.current) {
+      await sealNow(draftRef.current);
+      return;
+    }
+
+    if (camRef.current === "pending") {
+      await waitForLive(1500);
+    }
+
+    const canRecord =
+      Boolean(streamRef.current) &&
+      typeof MediaRecorder !== "undefined" &&
+      camRef.current === "live";
+    const path = panicCapturePath({
+      camLive: camRef.current === "live" && Boolean(streamRef.current),
+      canRecord,
+    });
+
+    if (path === "record") {
+      startRecording();
+      return;
+    }
+    if (path === "still") {
+      await grabStill();
+      return;
+    }
+    setPanicFallback(true);
+  }
+
+  const situationChip = situationContext(situationState);
+
   return (
     <section className="studio">
       <div className="viewfinder-wrap">
-        <div className={`viewfinder ${recording ? "is-recording" : ""}`}>
+        <div className={`viewfinder ${recording ? "is-recording" : ""} ${panicArmed ? "is-panic" : ""}`}>
           <video
             ref={videoRef}
             className={draft ? "is-hidden" : ""}
@@ -241,7 +403,12 @@ export function CaptureStudio() {
           <div className="hud-meta">
             <span>{cam === "live" ? "CAM LIVE" : cam === "blocked" ? "NO CAMERA" : "CAM…"}</span>
             <span>{draft ? draft.kind.toUpperCase() : "UNSEALED"}</span>
-            {recording && <span className="rec">REC {String(elapsed).padStart(2, "0")}s / 15s</span>}
+            {situationChip && <span>{situationChip.situation.toUpperCase()}</span>}
+            {recording && (
+              <span className="rec">
+                {panicArmed ? "PANIC " : ""}REC {String(elapsed).padStart(2, "0")}s / 15s
+              </span>
+            )}
           </div>
         </div>
         {cam === "blocked" && !draft && (
@@ -270,15 +437,74 @@ export function CaptureStudio() {
             ? " Pro is on — seal without a bag cap."
             : ` ${remaining} free seal${remaining === 1 ? "" : "s"} left on this device.`}
         </p>
+        <SituationPresets
+          presetId={presetId}
+          customLabel={customLabel}
+          sceneLabel={sceneLabel}
+          coach={coach}
+          onSelect={selectPreset}
+          onCustomLabel={(value) => {
+            setCustomLabel(value);
+            persistSituation({ presetId, customLabel: value, sceneLabel });
+          }}
+          onSceneLabel={(value) => {
+            setSceneLabel(value);
+            persistSituation({ presetId, customLabel, sceneLabel: value });
+          }}
+          onDismissCoach={() => {
+            dismissCoach();
+            setCoach(false);
+          }}
+        />
         <CustodyStrip liveStep={step ?? undefined} />
         <label className="field">
           <span>Holder name</span>
           <input
+            name="holderName"
             value={holderName}
             onChange={(e) => setHolder(e.target.value)}
             maxLength={80}
           />
         </label>
+        <div className="panic-dock">
+          <button
+            type="button"
+            className="btn btn-panic"
+            data-testid="panic-button"
+            aria-label="Panic seal — capture and seal immediately"
+            onClick={() => void onPanic()}
+            disabled={sealing}
+          >
+            Panic
+          </button>
+        </div>
+        {panicFallback && !draft && !sealing && (
+          <div className="panic-fallback" data-testid="panic-fallback" data-panic-fallback>
+            <p>
+              No live camera. Capture now with Phone camera or Sample still — sealing starts as
+              soon as the file lands. Same AES-256-GCM and RFC 3161 path.
+            </p>
+            <div className="actions">
+              <label className="btn btn-amber">
+                Phone camera
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void onFile(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <button type="button" className="btn" onClick={() => void onSample()}>
+                Sample still
+              </button>
+            </div>
+          </div>
+        )}
         <div className="actions">
           {!draft && (
             <>
@@ -296,7 +522,7 @@ export function CaptureStudio() {
                   Record 15s
                 </button>
               )}
-              <button className="btn" onClick={grabStill} disabled={cam !== "live"}>
+              <button className="btn" onClick={() => void grabStill()} disabled={cam !== "live"}>
                 Still
               </button>
               <label className="btn btn-amber">
@@ -347,12 +573,18 @@ export function CaptureStudio() {
           )}
           {draft && !sealing && (
             <>
-              <button className="btn btn-amber" onClick={() => void onSeal()}>
-                Seal evidence · {formatBytes(draft.bytes.byteLength)}
+              <button
+                className={`btn btn-amber${panicArmed ? " btn-seal-now" : ""}`}
+                onClick={() => void onSeal()}
+              >
+                {panicArmed ? "Seal now" : `Seal evidence · ${formatBytes(draft.bytes.byteLength)}`}
               </button>
               <button
                 className="btn btn-ghost"
                 onClick={() => {
+                  panicRef.current = false;
+                  setPanicArmed(false);
+                  setPanicFallback(false);
                   setDraft(null);
                   setStep(null);
                 }}

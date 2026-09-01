@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { formatBytes, shortHash } from "../lib/bytes";
 import { navigate } from "../lib/router";
+import { situationLine } from "../lib/situation";
 import { listBags } from "../lib/storage";
 import type { EvidenceBag } from "../lib/types";
 
@@ -30,18 +31,29 @@ export function BagsList() {
       <p className="kicker">Locker · {bags.length}</p>
       <h2>Sealed on this device</h2>
       <ul className="bag-list">
-        {bags.map((bag) => (
-          <li key={bag.id}>
-            <button className="bag-row" onClick={() => navigate({ name: "bag", id: bag.id })}>
-              <span className="mono">{bag.id}</span>
-              <span>
-                {bag.kind} · {formatBytes(bag.byteLength)} · {bag.holderName}
-              </span>
-              <span className="mono muted">{shortHash(bag.contentHash, 10)}…</span>
-              <span className="muted">{new Date(bag.capturedAt).toLocaleString()}</span>
-            </button>
-          </li>
-        ))}
+        {bags.map((bag) => {
+          const scene = situationLine(bag);
+          return (
+            <li key={bag.id}>
+              <button className="bag-row" onClick={() => navigate({ name: "bag", id: bag.id })}>
+                <span className="mono">{bag.id}</span>
+                <span>
+                  {bag.kind} · {formatBytes(bag.byteLength)} · {bag.holderName}
+                  {scene ? (
+                    <>
+                      {" · "}
+                      <span className="situation-inline" data-testid="locker-situation">
+                        {scene}
+                      </span>
+                    </>
+                  ) : null}
+                </span>
+                <span className="mono muted">{shortHash(bag.contentHash, 10)}…</span>
+                <span className="muted">{new Date(bag.capturedAt).toLocaleString()}</span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
