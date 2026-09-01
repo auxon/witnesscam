@@ -281,6 +281,114 @@ h2 {
   font-size: 40px;
 }
 
+.situation-block {
+  margin: 18px 0 8px;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preset-chip {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.preset-chip.is-on,
+.preset-chip[aria-selected="true"] {
+  border-color: var(--amber);
+  background: rgba(212, 160, 23, 0.12);
+  color: var(--text);
+}
+
+.coach {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--amber-dim);
+  background: rgba(212, 160, 23, 0.06);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.coach p {
+  margin: 0;
+  flex: 1;
+}
+
+.coach strong {
+  color: var(--text);
+}
+
+.panic-dock {
+  margin: 8px 0 4px;
+}
+
+.btn-panic {
+  width: 100%;
+  min-height: 52px;
+  background: #8f2416;
+  border: 1px solid var(--seal);
+  color: #fff8f5;
+  font-family: var(--mono);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.btn-panic:hover:not(:disabled) {
+  background: var(--seal);
+}
+
+.btn-seal-now {
+  min-height: 52px;
+  width: 100%;
+  font-size: 16px;
+}
+
+.panic-fallback {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--seal);
+  background: rgba(194, 59, 34, 0.08);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.panic-fallback p {
+  margin: 0;
+}
+
+.viewfinder.is-panic {
+  box-shadow: inset 0 0 0 2px var(--seal);
+}
+
+.situation-tag {
+  margin: 8px 0 0;
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.situation-inline {
+  color: var(--amber);
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -739,6 +847,18 @@ dd {
     justify-content: flex-end;
     flex-wrap: wrap;
   }
+
+  .panic-dock {
+    position: sticky;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 20;
+    margin: 16px 0 8px;
+  }
+
+  .btn-panic {
+    min-height: 56px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  }
 }
 
 @media (pointer: coarse) {
@@ -751,6 +871,20 @@ dd {
     min-height: 40px;
     display: inline-flex;
     align-items: center;
+  }
+
+  .preset-chip {
+    min-height: 44px;
+  }
+
+  .panic-dock {
+    position: sticky;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 20;
+  }
+
+  .btn-panic {
+    min-height: 56px;
   }
 }
 

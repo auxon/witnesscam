@@ -31,9 +31,26 @@ try {
   const brand = await page.$eval(".brand", (el) => el.textContent.trim());
   if (!brand.includes("WitnessCam")) throw new Error(`bad brand: ${brand}`);
 
-  const holder = await page.waitForSelector(".field input");
+  const holder = await page.waitForSelector('input[name="holderName"]');
   await holder.click({ clickCount: 3 });
   await holder.type("Richard Hein");
+
+  const presets = await page.$$eval("[data-testid='situation-presets'] button", (els) =>
+    els.map((e) => e.textContent.trim()),
+  );
+  log.push(`presets: ${presets.join(" | ")}`);
+  for (const name of ["Landlord", "Delivery", "Roadside", "Workplace", "Night walk", "Other"]) {
+    if (!presets.includes(name)) throw new Error(`missing preset ${name}`);
+  }
+  if (!(await page.$("[data-testid='panic-button']"))) throw new Error("missing Panic");
+
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll("[data-testid='situation-presets'] button")].find(
+      (b) => b.textContent.includes("Landlord"),
+    );
+    btn?.click();
+  });
+  log.push("selected Landlord");
 
   const buttons = await page.$$eval(".actions .btn", (els) =>
     els.map((e) => e.textContent.trim()),
@@ -71,6 +88,14 @@ try {
   const seal = await page.$eval(".seal", (el) => el.textContent.trim());
   log.push(`seal=${seal}`);
   if (!seal.includes("INTACT")) throw new Error(`seal not intact: ${seal}`);
+
+  const situation = await page.$eval("[data-testid='bag-situation']", (el) =>
+    el.textContent.trim(),
+  );
+  log.push(`situation=${situation}`);
+  if (!situation.includes("Landlord") || !situation.includes("Apt hallway")) {
+    throw new Error(`situation missing on bag: ${situation}`);
+  }
 
   const hash = await page.$eval("dd.mono.wrap", (el) => el.textContent.trim());
   if (!/^[0-9a-f]{64}$/.test(hash)) throw new Error(`bad hash: ${hash}`);
@@ -146,7 +171,11 @@ try {
     btn?.click();
   });
   await page.waitForSelector(".bag-row");
-  log.push("locker has bag");
+  const lockerScene = await page.$eval("[data-testid='locker-situation']", (el) =>
+    el.textContent.trim(),
+  );
+  log.push(`locker situation=${lockerScene}`);
+  if (!lockerScene.includes("Landlord")) throw new Error(`locker missing situation: ${lockerScene}`);
 
   await page.setViewport({ width: 390, height: 844 });
   await page.evaluate(() => {
@@ -162,6 +191,52 @@ try {
   });
   log.push(`mobile studio columns=${studio.columns} width=${studio.width}`);
   if (studio.width > 400) throw new Error("mobile studio too wide");
+
+  await page.evaluate(() => {
+    const btn = document.querySelector("[data-testid='panic-button']");
+    btn?.click();
+  });
+  log.push("panic tapped");
+
+  await page.waitForFunction(
+    () =>
+      Boolean(
+        document.querySelector("[data-testid='panic-fallback']") ||
+          location.hash.includes("/bag/") ||
+          document.querySelector(".rec"),
+      ),
+    { timeout: 8000 },
+  );
+  const panicMode = await page.evaluate(() => {
+    if (location.hash.includes("/bag/")) return "sealed";
+    if (document.querySelector("[data-testid='panic-fallback']")) return "fallback";
+    if (document.querySelector(".rec")) return "recording";
+    return "unknown";
+  });
+  log.push(`panic mode=${panicMode}`);
+
+  if (panicMode === "fallback") {
+    await page.evaluate(() => {
+      const root = document.querySelector("[data-testid='panic-fallback']");
+      const btn = [...(root?.querySelectorAll("button") ?? [])].find((b) =>
+        b.textContent.includes("Sample still"),
+      );
+      btn?.click();
+    });
+  } else if (panicMode !== "sealed" && panicMode !== "recording") {
+    throw new Error(`panic did not start: ${panicMode}`);
+  }
+
+  if (!page.url().includes("/bag/")) {
+    await page.waitForFunction(() => location.hash.includes("/bag/"), { timeout: 40000 });
+  }
+  log.push(`panic sealed url=${page.url()}`);
+
+  const panicScene = await page.$eval("[data-testid='bag-situation']", (el) =>
+    el.textContent.trim(),
+  );
+  log.push(`panic situation=${panicScene}`);
+  if (!panicScene) throw new Error("panic bag missing situation");
 
   if (errors.length) {
     console.log(log.join("\n"));

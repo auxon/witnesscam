@@ -58,6 +58,11 @@ export type EvidenceBag = {
   holderName: string;
   orgId?: string;
   orgName?: string;
+  /** Counsel-facing scene, e.g. Landlord. Does not affect the crypto path. */
+  situation?: string;
+  presetId?: string;
+  sceneLabel?: string;
+  situationNote?: string;
   events: CustodyEvent[];
   chainTip: string;
   anchor: ChainAnchor;
@@ -78,6 +83,10 @@ export type PublicProof = {
   deviceId: string;
   holderName: string;
   orgName?: string;
+  situation?: string;
+  presetId?: string;
+  sceneLabel?: string;
+  situationNote?: string;
   events: CustodyEvent[];
   chainTip: string;
   anchor: ChainAnchor;

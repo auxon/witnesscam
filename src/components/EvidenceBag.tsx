@@ -7,6 +7,7 @@ import { getBag, getCiphertext, getKey, toProof } from "../lib/storage";
 import { transferCustody } from "../lib/transfer";
 import type { EvidenceBag } from "../lib/types";
 import { downloadCustodyExport, printCustodyCertificate } from "../lib/auditExport";
+import { situationLine } from "../lib/situation";
 import { explorerTxUrl } from "../lib/yours";
 import { CustodyStrip } from "./CustodyStrip";
 
@@ -87,6 +88,7 @@ export function EvidenceBagView({ id }: { id: string }) {
   const live = bag.anchor.network !== "bsv-demo" && bag.anchor.network !== "none";
   const explorer = explorerTxUrl(bag.anchor.network, bag.anchor.txid);
   const tsa = bag.rfc3161;
+  const scene = situationLine(bag);
 
   return (
     <article className="bag">
@@ -97,6 +99,11 @@ export function EvidenceBagView({ id }: { id: string }) {
           <p className="mono muted">
             {bag.filename} · {formatBytes(bag.byteLength)} · holder {bag.holderName}
           </p>
+          {scene && (
+            <p className="situation-tag" data-testid="bag-situation">
+              {scene}
+            </p>
+          )}
         </div>
         <div className={`seal ${chain === "intact" ? "seal-ok" : "seal-bad"}`}>
           {chain === "intact" ? "TAMPER SEAL INTACT" : chain}
@@ -121,6 +128,18 @@ export function EvidenceBagView({ id }: { id: string }) {
         <div>
           <CustodyStrip events={bag.events} />
           <dl className="meta-list">
+            {bag.situation && (
+              <div>
+                <dt>Situation</dt>
+                <dd data-testid="bag-situation-meta">{bag.situation}</dd>
+              </div>
+            )}
+            {bag.sceneLabel && (
+              <div>
+                <dt>Scene label</dt>
+                <dd>{bag.sceneLabel}</dd>
+              </div>
+            )}
             <div>
               <dt>Content SHA-256</dt>
               <dd className="mono wrap">{bag.contentHash}</dd>

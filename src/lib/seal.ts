@@ -4,6 +4,7 @@ import { sha256Hex } from "./bytes";
 import { GENESIS_PREV, appendEvent, chainTip } from "./custody";
 import { getDevice, holderFromDevice, nextBagId } from "./device";
 import { fetchOrg } from "./org";
+import { applySituationToBag, situationMeta, type SituationContext } from "./situation";
 import { saveBag } from "./storage";
 import { chainActor } from "./yours";
 import type { EvidenceBag, MediaKind } from "./types";
@@ -20,6 +21,7 @@ export type SealInput = {
   kind: MediaKind;
   mimeType: string;
   filename: string;
+  situation?: SituationContext;
   onProgress?: (step: SealProgress) => void;
 };
 
@@ -28,7 +30,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 export async function sealEvidence(input: SealInput): Promise<EvidenceBag> {
-  const { bytes, kind, mimeType, filename, onProgress } = input;
+  const { bytes, kind, mimeType, filename, situation, onProgress } = input;
   const device = getDevice();
   const holder = holderFromDevice(device);
   const capturedAt = new Date().toISOString();
@@ -56,6 +58,7 @@ export async function sealEvidence(input: SealInput): Promise<EvidenceBag> {
       mimeType,
       byteLength: String(bytes.byteLength),
       kind,
+      ...situationMeta(situation),
     },
   });
 
@@ -112,27 +115,30 @@ export async function sealEvidence(input: SealInput): Promise<EvidenceBag> {
   onProgress?.("timestamped");
   await sleep(320);
 
-  const bag: EvidenceBag = {
-    id: bagId,
-    kind,
-    mimeType,
-    byteLength: bytes.byteLength,
-    capturedAt,
-    contentHash,
-    ciphertextHash,
-    ivHex,
-    deviceId: device.id,
-    deviceLabel: device.label,
-    holderId: holder.holderId,
-    holderName: holder.holderName,
-    orgId: org?.id,
-    orgName: org?.name,
-    events,
-    chainTip: chainTip(events),
-    anchor,
-    rfc3161,
-    filename,
-  };
+  const bag: EvidenceBag = applySituationToBag(
+    {
+      id: bagId,
+      kind,
+      mimeType,
+      byteLength: bytes.byteLength,
+      capturedAt,
+      contentHash,
+      ciphertextHash,
+      ivHex,
+      deviceId: device.id,
+      deviceLabel: device.label,
+      holderId: holder.holderId,
+      holderName: holder.holderName,
+      orgId: org?.id,
+      orgName: org?.name,
+      events,
+      chainTip: chainTip(events),
+      anchor,
+      rfc3161,
+      filename,
+    },
+    situation,
+  );
 
   await saveBag(bag, ciphertext, {
     bagId: bag.id,
